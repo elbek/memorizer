@@ -3,6 +3,7 @@ import { auth } from "./routes/auth";
 import { pools } from "./routes/pools";
 import { schedule, todayHandler } from "./routes/schedule";
 import { items } from "./routes/items";
+import { reports } from "./routes/reports";
 import { authMiddleware } from "./auth";
 
 type Bindings = { DB: D1Database; JWT_SECRET: string };
@@ -19,6 +20,7 @@ api.use("*", authMiddleware);
 api.route("/pools", pools);
 api.route("/schedule", schedule);
 api.route("/item", items);
+api.route("/reports", reports);
 api.get("/today", todayHandler);
 app.route("/api", api);
 
