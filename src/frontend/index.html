@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Quran Memorizer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50:'#ecfdf5',100:'#d1fae5',200:'#a7f3d0',300:'#6ee7b7',400:'#34d399',500:'#10b981',600:'#059669',700:'#047857',800:'#065f46',900:'#064e3b' },
+            gold: { 50:'#fffbeb',100:'#fef3c7',200:'#fde68a',300:'#fcd34d',400:'#fbbf24',500:'#f59e0b',600:'#d97706',700:'#b45309',800:'#92400e',900:'#78350f' },
+            sand: { 50:'#fefdfb',100:'#fdf8f0',200:'#faf0de',300:'#f5e6c8' },
+          },
+          fontFamily: {
+            arabic: ['"Scheherazade New"', 'serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    body { background: #fefdfb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .tab-btn.active { color: #059669; }
+    .tab-btn.active .tab-icon { color: #059669; }
+    .tab-btn.active .tab-dot { background: #059669; }
+
+    /* Custom range slider */
+    input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; border-radius: 4px; outline: none; }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 28px; height: 28px; border-radius: 50%;
+      background: linear-gradient(135deg, #059669, #10b981);
+      cursor: pointer; border: 3px solid white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: linear-gradient(135deg, #059669, #10b981);
+      cursor: pointer; border: 3px solid white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    /* Transition for screens */
+    .fade-in { animation: fadeIn 0.25s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Modal backdrop */
+    .modal-backdrop { background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+
+    /* Pin input styling */
+    .pin-input { letter-spacing: 0.5em; text-align: center; font-size: 1.5rem; }
+
+    /* Calendar day cell */
+    .cal-day { min-height: 44px; min-width: 44px; }
+
+    /* Quality gradient */
+    .quality-gradient {
+      background: linear-gradient(to right, #ef4444, #f59e0b, #10b981);
+    }
+  </style>
+</head>
+<body class="bg-sand-50 text-gray-800 min-h-screen">
+
+  <!-- ===================== LOGIN SCREEN ===================== -->
+  <div id="login-screen" class="screen active">
+    <div class="min-h-screen flex items-center justify-center px-4">
+      <div class="w-full max-w-sm">
+        <!-- Logo / Header -->
+        <div class="text-center mb-8">
+          <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg">
+            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+            </svg>
+          </div>
+          <h1 class="text-2xl font-bold text-gray-900">Quran Memorizer</h1>
+          <p class="text-gray-500 mt-1">Track your memorization journey</p>
+        </div>
+
+        <!-- Login Card -->
+        <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+          <div id="auth-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl"></div>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Name</label>
+              <input id="auth-name" type="text" placeholder="Enter your name"
+                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition text-gray-900 bg-gray-50">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">PIN (5 digits)</label>
+              <input id="auth-pin" type="password" inputmode="numeric" pattern="\d{5}" maxlength="5" placeholder="*****"
+                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition text-gray-900 bg-gray-50 pin-input">
+            </div>
+          </div>
+
+          <div class="mt-6 space-y-3">
+            <button onclick="handleLogin()" id="login-btn"
+              class="w-full py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold rounded-xl hover:from-primary-700 hover:to-primary-800 transition shadow-md active:scale-[0.98]">
+              Login
+            </button>
+            <button onclick="handleRegister()" id="register-btn"
+              class="w-full py-3 bg-white border-2 border-primary-600 text-primary-700 font-semibold rounded-xl hover:bg-primary-50 transition active:scale-[0.98]">
+              Register
+            </button>
+          </div>
+        </div>
+
+        <p class="text-center text-xs text-gray-400 mt-6">Bismillah - In the name of Allah</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== APP SHELL ===================== -->
+  <div id="app-shell" class="screen">
+    <!-- Top bar -->
+    <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-100 px-4 py-3">
+      <div class="max-w-lg mx-auto flex items-center justify-between">
+        <h1 class="text-lg font-bold text-primary-700">Quran Memorizer</h1>
+        <div class="flex items-center gap-3">
+          <span id="user-greeting" class="text-sm text-gray-500"></span>
+          <button onclick="handleLogout()" class="text-xs text-gray-400 hover:text-red-500 transition px-2 py-1 rounded-lg hover:bg-red-50">
+            Logout
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content area -->
+    <main class="pb-24 max-w-lg mx-auto px-4">
+      <!-- Screen: Home / Dashboard -->
+      <div id="screen-home" class="screen active fade-in">
+        <div class="py-4">
+          <div class="mb-4">
+            <p class="text-sm text-gray-500" id="today-date"></p>
+            <h2 class="text-xl font-bold text-gray-900" id="today-greeting"></h2>
+          </div>
+
+          <div id="today-loading" class="text-center py-12">
+            <div class="inline-block w-8 h-8 border-3 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <p class="text-gray-400 text-sm mt-2">Loading today's schedule...</p>
+          </div>
+
+          <div id="today-content" class="hidden space-y-4"></div>
+
+          <div id="today-empty" class="hidden text-center py-12">
+            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-primary-50 flex items-center justify-center">
+              <svg class="w-8 h-8 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-700">No assignments today</h3>
+            <p class="text-gray-400 mt-1 text-sm">Set up a schedule in the Pools tab to get started.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screen: Pools -->
+      <div id="screen-pools" class="screen fade-in">
+        <div class="py-4">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-gray-900">Pool Management</h2>
+            <button onclick="openCreatePoolModal()"
+              class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition shadow-sm active:scale-[0.98]">
+              + New Pool
+            </button>
+          </div>
+
+          <!-- Pool selector -->
+          <div id="pool-tabs" class="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-1 px-1"></div>
+
+          <!-- Surah search -->
+          <div class="mb-3">
+            <input id="surah-search" type="text" placeholder="Search surahs..."
+              oninput="filterSurahs()"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white text-sm">
+          </div>
+
+          <!-- Surah list -->
+          <div id="surah-list" class="space-y-1.5 max-h-[55vh] overflow-y-auto"></div>
+
+          <!-- Summary bar -->
+          <div id="pool-summary" class="mt-4 p-3 bg-primary-50 rounded-xl border border-primary-100 flex items-center justify-between">
+            <span id="pool-summary-text" class="text-sm font-medium text-primary-700"></span>
+            <button onclick="openScheduleModal()" id="generate-schedule-btn"
+              class="px-4 py-2 bg-gold-500 text-white text-sm font-semibold rounded-xl hover:bg-gold-600 transition shadow-sm active:scale-[0.98]">
+              Generate Schedule
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screen: Calendar -->
+      <div id="screen-calendar" class="screen fade-in">
+        <div class="py-4">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-gray-900">Calendar</h2>
+          </div>
+
+          <!-- Pool filter -->
+          <div id="cal-pool-filter" class="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-1 px-1"></div>
+
+          <!-- Month navigation -->
+          <div class="flex items-center justify-between mb-3 bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+            <button onclick="calPrevMonth()" class="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center transition">
+              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <span id="cal-month-label" class="text-base font-semibold text-gray-800"></span>
+            <button onclick="calNextMonth()" class="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center transition">
+              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+
+          <!-- Day headers -->
+          <div class="grid grid-cols-7 gap-1 mb-1">
+            <div class="text-center text-xs font-medium text-gray-400 py-1">Sun</div>
+            <div class="text-center text-xs font-medium text-gray-400 py-1">Mon</div>
+            <div class="text-center text-xs font-medium text-gray-400 py-1">Tue</div>
+            <div class="text-center text-xs font-medium text-gray-400 py-1">Wed</div>
+            <div class="text-center text-xs font-medium text-gray-400 py-1">Thu</div>
+            <div class="text-center text-xs font-medium text-gray-400 py-1">Fri</div>
+            <div class="text-center text-xs font-medium text-gray-400 py-1">Sat</div>
+          </div>
+
+          <!-- Calendar grid -->
+          <div id="cal-grid" class="grid grid-cols-7 gap-1"></div>
+
+          <!-- Day detail (expanded) -->
+          <div id="cal-day-detail" class="hidden mt-3 bg-white rounded-xl p-4 shadow-sm border border-gray-100"></div>
+        </div>
+      </div>
+
+      <!-- Screen: Reports -->
+      <div id="screen-reports" class="screen fade-in">
+        <div class="py-4">
+          <h2 class="text-xl font-bold text-gray-900 mb-4">Reports</h2>
+
+          <!-- Summary cards -->
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+              <p class="text-xs text-gray-400 uppercase tracking-wide">Total Recitations</p>
+              <p id="report-total" class="text-2xl font-bold text-primary-700 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+              <p class="text-xs text-gray-400 uppercase tracking-wide">Avg Quality</p>
+              <p id="report-avg" class="text-2xl font-bold text-gold-600 mt-1">-</p>
+            </div>
+          </div>
+
+          <!-- Sort controls -->
+          <div class="flex gap-2 mb-3 overflow-x-auto">
+            <button onclick="sortReports('surah')" class="sort-btn px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition whitespace-nowrap" data-sort="surah">Surah #</button>
+            <button onclick="sortReports('times')" class="sort-btn px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition whitespace-nowrap" data-sort="times">Times Recited</button>
+            <button onclick="sortReports('quality')" class="sort-btn px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition whitespace-nowrap" data-sort="quality">Avg Quality</button>
+            <button onclick="sortReports('last')" class="sort-btn px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition whitespace-nowrap" data-sort="last">Last Recited</button>
+          </div>
+
+          <!-- Stats table -->
+          <div id="report-list" class="space-y-2"></div>
+
+          <div id="report-empty" class="hidden text-center py-8">
+            <p class="text-gray-400 text-sm">No recitation data yet. Complete some assignments to see stats.</p>
+          </div>
+
+          <!-- Backup button -->
+          <div class="mt-6">
+            <button onclick="downloadBackup()"
+              class="w-full py-3 bg-white border-2 border-gray-200 text-gray-600 font-medium rounded-xl hover:bg-gray-50 transition flex items-center justify-center gap-2 active:scale-[0.98]">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              Download Backup (JSON)
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Bottom tab bar -->
+    <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-100 safe-bottom">
+      <div class="max-w-lg mx-auto flex">
+        <button onclick="switchTab('home')" class="tab-btn active flex-1 flex flex-col items-center py-2.5 gap-0.5 transition" data-tab="home">
+          <svg class="tab-icon w-6 h-6 text-gray-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+          <span class="text-[10px] font-medium text-gray-400 transition">Home</span>
+        </button>
+        <button onclick="switchTab('pools')" class="tab-btn flex-1 flex flex-col items-center py-2.5 gap-0.5 transition" data-tab="pools">
+          <svg class="tab-icon w-6 h-6 text-gray-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          <span class="text-[10px] font-medium text-gray-400 transition">Pools</span>
+        </button>
+        <button onclick="switchTab('calendar')" class="tab-btn flex-1 flex flex-col items-center py-2.5 gap-0.5 transition" data-tab="calendar">
+          <svg class="tab-icon w-6 h-6 text-gray-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <span class="text-[10px] font-medium text-gray-400 transition">Calendar</span>
+        </button>
+        <button onclick="switchTab('reports')" class="tab-btn flex-1 flex flex-col items-center py-2.5 gap-0.5 transition" data-tab="reports">
+          <svg class="tab-icon w-6 h-6 text-gray-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          <span class="text-[10px] font-medium text-gray-400 transition">Reports</span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- ===================== MODALS ===================== -->
+
+  <!-- Create Pool Modal -->
+  <div id="modal-create-pool" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="modal-backdrop absolute inset-0" onclick="closeModal('modal-create-pool')"></div>
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm relative z-10">
+      <h3 class="text-lg font-bold text-gray-900 mb-4">Create New Pool</h3>
+      <div id="create-pool-error" class="hidden mb-3 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl"></div>
+      <input id="create-pool-name" type="text" placeholder="Pool name"
+        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50 mb-4">
+      <div class="flex gap-3">
+        <button onclick="closeModal('modal-create-pool')" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition">Cancel</button>
+        <button onclick="createPool()" class="flex-1 py-2.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Schedule Setup Modal -->
+  <div id="modal-schedule" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div class="modal-backdrop absolute inset-0" onclick="closeModal('modal-schedule')"></div>
+    <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl p-6 w-full max-w-sm relative z-10 max-h-[85vh] overflow-y-auto">
+      <h3 class="text-lg font-bold text-gray-900 mb-4">Generate Schedule</h3>
+      <div id="schedule-error" class="hidden mb-3 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl"></div>
+
+      <div class="space-y-4 mb-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Number of Days</label>
+          <input id="schedule-days" type="number" min="1" max="365" value="10"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Start Date</label>
+          <input id="schedule-start" type="date"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50">
+        </div>
+      </div>
+
+      <div class="flex gap-3 mb-4">
+        <button onclick="previewSchedule()" class="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition">Preview</button>
+        <button onclick="activateSchedule()" id="activate-btn" class="flex-1 py-2.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition">Activate</button>
+      </div>
+
+      <!-- Preview list -->
+      <div id="schedule-preview" class="hidden">
+        <h4 class="text-sm font-semibold text-gray-700 mb-2">Preview</h4>
+        <div id="schedule-preview-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
+      </div>
+
+      <button onclick="closeModal('modal-schedule')" class="w-full mt-3 py-2.5 text-gray-500 text-sm hover:text-gray-700 transition">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Quality Slider Modal (Done) -->
+  <div id="modal-done" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div class="modal-backdrop absolute inset-0" onclick="closeModal('modal-done')"></div>
+    <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl p-6 w-full max-w-sm relative z-10">
+      <h3 class="text-lg font-bold text-gray-900 mb-1">Mark as Done</h3>
+      <p id="done-item-label" class="text-sm text-gray-500 mb-5"></p>
+
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 mb-3">Quality Rating</label>
+        <div class="quality-gradient h-2 rounded-full mb-3"></div>
+        <input id="done-quality" type="range" min="1" max="20" value="10"
+          class="w-full" oninput="updateQualityLabel('done')">
+        <div class="flex justify-between mt-1">
+          <span class="text-xs text-red-500 font-medium">Weak (1)</span>
+          <span id="done-quality-value" class="text-sm font-bold text-primary-700">10</span>
+          <span class="text-xs text-green-600 font-medium">Perfect (20)</span>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <button onclick="closeModal('modal-done')" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition">Cancel</button>
+        <button onclick="confirmDone()" class="flex-1 py-2.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Partial Modal -->
+  <div id="modal-partial" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div class="modal-backdrop absolute inset-0" onclick="closeModal('modal-partial')"></div>
+    <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl p-6 w-full max-w-sm relative z-10">
+      <h3 class="text-lg font-bold text-gray-900 mb-1">Mark as Partial</h3>
+      <p id="partial-item-label" class="text-sm text-gray-500 mb-5"></p>
+
+      <div id="partial-error" class="hidden mb-3 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl"></div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Stopped at page</label>
+        <input id="partial-page" type="number" step="0.5"
+          class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50">
+        <p id="partial-page-hint" class="text-xs text-gray-400 mt-1"></p>
+      </div>
+
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 mb-3">Quality Rating</label>
+        <div class="quality-gradient h-2 rounded-full mb-3"></div>
+        <input id="partial-quality" type="range" min="1" max="20" value="10"
+          class="w-full" oninput="updateQualityLabel('partial')">
+        <div class="flex justify-between mt-1">
+          <span class="text-xs text-red-500 font-medium">Weak (1)</span>
+          <span id="partial-quality-value" class="text-sm font-bold text-primary-700">10</span>
+          <span class="text-xs text-green-600 font-medium">Perfect (20)</span>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <button onclick="closeModal('modal-partial')" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition">Cancel</button>
+        <button onclick="confirmPartial()" class="flex-1 py-2.5 bg-gold-500 text-white rounded-xl font-medium hover:bg-gold-600 transition">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Pool Confirmation -->
+  <div id="modal-delete-pool" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="modal-backdrop absolute inset-0" onclick="closeModal('modal-delete-pool')"></div>
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm relative z-10">
+      <h3 class="text-lg font-bold text-gray-900 mb-2">Delete Pool?</h3>
+      <p class="text-sm text-gray-500 mb-4">This will remove the pool and all its surah assignments. This cannot be undone.</p>
+      <div class="flex gap-3">
+        <button onclick="closeModal('modal-delete-pool')" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition">Cancel</button>
+        <button onclick="confirmDeletePool()" class="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition">Delete</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ===================== JAVASCRIPT ===================== -->
+  <script>
+  // ============================================================
+  // SURAHS DATA (embedded for instant UI)
+  // ============================================================
+  const SURAHS = [
+    { number: 1, name: "Al-Fatihah", arabic: "\u0627\u0644\u0641\u0627\u062a\u062d\u0629", pages: 0.5 },
+    { number: 2, name: "Al-Baqarah", arabic: "\u0627\u0644\u0628\u0642\u0631\u0629", pages: 48 },
+    { number: 3, name: "Aal-Imran", arabic: "\u0622\u0644 \u0639\u0645\u0631\u0627\u0646", pages: 27 },
+    { number: 4, name: "An-Nisa", arabic: "\u0627\u0644\u0646\u0633\u0627\u0621", pages: 29 },
+    { number: 5, name: "Al-Ma'idah", arabic: "\u0627\u0644\u0645\u0627\u0626\u062f\u0629", pages: 22 },
+    { number: 6, name: "Al-An'am", arabic: "\u0627\u0644\u0623\u0646\u0639\u0627\u0645", pages: 23 },
+    { number: 7, name: "Al-A'raf", arabic: "\u0627\u0644\u0623\u0639\u0631\u0627\u0641", pages: 26 },
+    { number: 8, name: "Al-Anfal", arabic: "\u0627\u0644\u0623\u0646\u0641\u0627\u0644", pages: 10 },
+    { number: 9, name: "At-Tawbah", arabic: "\u0627\u0644\u062a\u0648\u0628\u0629", pages: 21 },
+    { number: 10, name: "Yunus", arabic: "\u064a\u0648\u0646\u0633", pages: 13 },
+    { number: 11, name: "Hud", arabic: "\u0647\u0648\u062f", pages: 14 },
+    { number: 12, name: "Yusuf", arabic: "\u064a\u0648\u0633\u0641", pages: 14 },
+    { number: 13, name: "Ar-Ra'd", arabic: "\u0627\u0644\u0631\u0639\u062f", pages: 6 },
+    { number: 14, name: "Ibrahim", arabic: "\u0625\u0628\u0631\u0627\u0647\u064a\u0645", pages: 7 },
+    { number: 15, name: "Al-Hijr", arabic: "\u0627\u0644\u062d\u062c\u0631", pages: 5 },
+    { number: 16, name: "An-Nahl", arabic: "\u0627\u0644\u0646\u062d\u0644", pages: 15 },
+    { number: 17, name: "Al-Isra", arabic: "\u0627\u0644\u0625\u0633\u0631\u0627\u0621", pages: 11 },
+    { number: 18, name: "Al-Kahf", arabic: "\u0627\u0644\u0643\u0647\u0641", pages: 12 },
+    { number: 19, name: "Maryam", arabic: "\u0645\u0631\u064a\u0645", pages: 7 },
+    { number: 20, name: "Taha", arabic: "\u0637\u0647", pages: 9 },
+    { number: 21, name: "Al-Anbiya", arabic: "\u0627\u0644\u0623\u0646\u0628\u064a\u0627\u0621", pages: 10 },
+    { number: 22, name: "Al-Hajj", arabic: "\u0627\u0644\u062d\u062c", pages: 10 },
+    { number: 23, name: "Al-Mu'minun", arabic: "\u0627\u0644\u0645\u0624\u0645\u0646\u0648\u0646", pages: 8 },
+    { number: 24, name: "An-Nur", arabic: "\u0627\u0644\u0646\u0648\u0631", pages: 9 },
+    { number: 25, name: "Al-Furqan", arabic: "\u0627\u0644\u0641\u0631\u0642\u0627\u0646", pages: 8 },
+    { number: 26, name: "Ash-Shu'ara", arabic: "\u0627\u0644\u0634\u0639\u0631\u0627\u0621", pages: 10 },
+    { number: 27, name: "An-Naml", arabic: "\u0627\u0644\u0646\u0645\u0644", pages: 8 },
+    { number: 28, name: "Al-Qasas", arabic: "\u0627\u0644\u0642\u0635\u0635", pages: 11 },
+    { number: 29, name: "Al-Ankabut", arabic: "\u0627\u0644\u0639\u0646\u0643\u0628\u0648\u062a", pages: 8 },
+    { number: 30, name: "Ar-Rum", arabic: "\u0627\u0644\u0631\u0648\u0645", pages: 7 },
+    { number: 31, name: "Luqman", arabic: "\u0644\u0642\u0645\u0627\u0646", pages: 4 },
+    { number: 32, name: "As-Sajdah", arabic: "\u0627\u0644\u0633\u062c\u062f\u0629", pages: 3 },
+    { number: 33, name: "Al-Ahzab", arabic: "\u0627\u0644\u0623\u062d\u0632\u0627\u0628", pages: 10 },
+    { number: 34, name: "Saba", arabic: "\u0633\u0628\u0623", pages: 6 },
+    { number: 35, name: "Fatir", arabic: "\u0641\u0627\u0637\u0631", pages: 6 },
+    { number: 36, name: "Ya-Sin", arabic: "\u064a\u0633", pages: 6 },
+    { number: 37, name: "As-Saffat", arabic: "\u0627\u0644\u0635\u0627\u0641\u0627\u062a", pages: 7 },
+    { number: 38, name: "Sad", arabic: "\u0635", pages: 5 },
+    { number: 39, name: "Az-Zumar", arabic: "\u0627\u0644\u0632\u0645\u0631", pages: 9 },
+    { number: 40, name: "Ghafir", arabic: "\u063a\u0627\u0641\u0631", pages: 10 },
+    { number: 41, name: "Fussilat", arabic: "\u0641\u0635\u0644\u062a", pages: 6 },
+    { number: 42, name: "Ash-Shura", arabic: "\u0627\u0644\u0634\u0648\u0631\u0649", pages: 6 },
+    { number: 43, name: "Az-Zukhruf", arabic: "\u0627\u0644\u0632\u062e\u0631\u0641", pages: 7 },
+    { number: 44, name: "Ad-Dukhan", arabic: "\u0627\u0644\u062f\u062e\u0627\u0646", pages: 3 },
+    { number: 45, name: "Al-Jathiyah", arabic: "\u0627\u0644\u062c\u0627\u062b\u064a\u0629", pages: 3 },
+    { number: 46, name: "Al-Ahqaf", arabic: "\u0627\u0644\u0623\u062d\u0642\u0627\u0641", pages: 5 },
+    { number: 47, name: "Muhammad", arabic: "\u0645\u062d\u0645\u062f", pages: 4 },
+    { number: 48, name: "Al-Fath", arabic: "\u0627\u0644\u0641\u062a\u062d", pages: 4 },
+    { number: 49, name: "Al-Hujurat", arabic: "\u0627\u0644\u062d\u062c\u0631\u0627\u062a", pages: 3 },
+    { number: 50, name: "Qaf", arabic: "\u0642", pages: 2 },
+    { number: 51, name: "Adh-Dhariyat", arabic: "\u0627\u0644\u0630\u0627\u0631\u064a\u0627\u062a", pages: 3 },
+    { number: 52, name: "At-Tur", arabic: "\u0627\u0644\u0637\u0648\u0631", pages: 2 },
+    { number: 53, name: "An-Najm", arabic: "\u0627\u0644\u0646\u062c\u0645", pages: 2 },
+    { number: 54, name: "Al-Qamar", arabic: "\u0627\u0644\u0642\u0645\u0631", pages: 3 },
+    { number: 55, name: "Ar-Rahman", arabic: "\u0627\u0644\u0631\u062d\u0645\u0646", pages: 3 },
+    { number: 56, name: "Al-Waqi'ah", arabic: "\u0627\u0644\u0648\u0627\u0642\u0639\u0629", pages: 3 },
+    { number: 57, name: "Al-Hadid", arabic: "\u0627\u0644\u062d\u062f\u064a\u062f", pages: 5 },
+    { number: 58, name: "Al-Mujadilah", arabic: "\u0627\u0644\u0645\u062c\u0627\u062f\u0644\u0629", pages: 3 },
+    { number: 59, name: "Al-Hashr", arabic: "\u0627\u0644\u062d\u0634\u0631", pages: 3 },
+    { number: 60, name: "Al-Mumtahanah", arabic: "\u0627\u0644\u0645\u0645\u062a\u062d\u0646\u0629", pages: 2 },
+    { number: 61, name: "As-Saff", arabic: "\u0627\u0644\u0635\u0641", pages: 2 },
+    { number: 62, name: "Al-Jumu'ah", arabic: "\u0627\u0644\u062c\u0645\u0639\u0629", pages: 1 },
+    { number: 63, name: "Al-Munafiqun", arabic: "\u0627\u0644\u0645\u0646\u0627\u0641\u0642\u0648\u0646", pages: 2 },
+    { number: 64, name: "At-Taghabun", arabic: "\u0627\u0644\u062a\u063a\u0627\u0628\u0646", pages: 2 },
+    { number: 65, name: "At-Talaq", arabic: "\u0627\u0644\u0637\u0644\u0627\u0642", pages: 1.5 },
+    { number: 66, name: "At-Tahrim", arabic: "\u0627\u0644\u062a\u062d\u0631\u064a\u0645", pages: 2 },
+    { number: 67, name: "Al-Mulk", arabic: "\u0627\u0644\u0645\u0644\u0643", pages: 3 },
+    { number: 68, name: "Al-Qalam", arabic: "\u0627\u0644\u0642\u0644\u0645", pages: 2 },
+    { number: 69, name: "Al-Haqqah", arabic: "\u0627\u0644\u062d\u0627\u0642\u0629", pages: 2 },
+    { number: 70, name: "Al-Ma'arij", arabic: "\u0627\u0644\u0645\u0639\u0627\u0631\u062c", pages: 2 },
+    { number: 71, name: "Nuh", arabic: "\u0646\u0648\u062d", pages: 2 },
+    { number: 72, name: "Al-Jinn", arabic: "\u0627\u0644\u062c\u0646", pages: 2 },
+    { number: 73, name: "Al-Muzzammil", arabic: "\u0627\u0644\u0645\u0632\u0645\u0644", pages: 1 },
+    { number: 74, name: "Al-Muddaththir", arabic: "\u0627\u0644\u0645\u062f\u062b\u0631", pages: 2 },
+    { number: 75, name: "Al-Qiyamah", arabic: "\u0627\u0644\u0642\u064a\u0627\u0645\u0629", pages: 1 },
+    { number: 76, name: "Al-Insan", arabic: "\u0627\u0644\u0625\u0646\u0633\u0627\u0646", pages: 2 },
+    { number: 77, name: "Al-Mursalat", arabic: "\u0627\u0644\u0645\u0631\u0633\u0644\u0627\u062a", pages: 1.5 },
+    { number: 78, name: "An-Naba", arabic: "\u0627\u0644\u0646\u0628\u0623", pages: 1.5 },
+    { number: 79, name: "An-Nazi'at", arabic: "\u0627\u0644\u0646\u0627\u0632\u0639\u0627\u062a", pages: 1.5 },
+    { number: 80, name: "Abasa", arabic: "\u0639\u0628\u0633", pages: 1 },
+    { number: 81, name: "At-Takwir", arabic: "\u0627\u0644\u062a\u0643\u0648\u064a\u0631", pages: 1 },
+    { number: 82, name: "Al-Infitar", arabic: "\u0627\u0644\u0627\u0646\u0641\u0637\u0627\u0631", pages: 1 },
+    { number: 83, name: "Al-Mutaffifin", arabic: "\u0627\u0644\u0645\u0637\u0641\u0641\u064a\u0646", pages: 1.5 },
+    { number: 84, name: "Al-Inshiqaq", arabic: "\u0627\u0644\u0627\u0646\u0634\u0642\u0627\u0642", pages: 1 },
+    { number: 85, name: "Al-Buruj", arabic: "\u0627\u0644\u0628\u0631\u0648\u062c", pages: 1 },
+    { number: 86, name: "At-Tariq", arabic: "\u0627\u0644\u0637\u0627\u0631\u0642", pages: 0.5 },
+    { number: 87, name: "Al-A'la", arabic: "\u0627\u0644\u0623\u0639\u0644\u0649", pages: 0.5 },
+    { number: 88, name: "Al-Ghashiyah", arabic: "\u0627\u0644\u063a\u0627\u0634\u064a\u0629", pages: 1 },
+    { number: 89, name: "Al-Fajr", arabic: "\u0627\u0644\u0641\u062c\u0631", pages: 1.5 },
+    { number: 90, name: "Al-Balad", arabic: "\u0627\u0644\u0628\u0644\u062f", pages: 0.5 },
+    { number: 91, name: "Ash-Shams", arabic: "\u0627\u0644\u0634\u0645\u0633", pages: 0.5 },
+    { number: 92, name: "Al-Layl", arabic: "\u0627\u0644\u0644\u064a\u0644", pages: 0.5 },
+    { number: 93, name: "Ad-Duha", arabic: "\u0627\u0644\u0636\u062d\u0649", pages: 0.5 },
+    { number: 94, name: "Ash-Sharh", arabic: "\u0627\u0644\u0634\u0631\u062d", pages: 0.5 },
+    { number: 95, name: "At-Tin", arabic: "\u0627\u0644\u062a\u064a\u0646", pages: 0.5 },
+    { number: 96, name: "Al-Alaq", arabic: "\u0627\u0644\u0639\u0644\u0642", pages: 1 },
+    { number: 97, name: "Al-Qadr", arabic: "\u0627\u0644\u0642\u062f\u0631", pages: 0.5 },
+    { number: 98, name: "Al-Bayyinah", arabic: "\u0627\u0644\u0628\u064a\u0646\u0629", pages: 1 },
+    { number: 99, name: "Az-Zalzalah", arabic: "\u0627\u0644\u0632\u0644\u0632\u0644\u0629", pages: 0.5 },
+    { number: 100, name: "Al-Adiyat", arabic: "\u0627\u0644\u0639\u0627\u062f\u064a\u0627\u062a", pages: 0.5 },
+    { number: 101, name: "Al-Qari'ah", arabic: "\u0627\u0644\u0642\u0627\u0631\u0639\u0629", pages: 0.5 },
+    { number: 102, name: "At-Takathur", arabic: "\u0627\u0644\u062a\u0643\u0627\u062b\u0631", pages: 0.5 },
+    { number: 103, name: "Al-Asr", arabic: "\u0627\u0644\u0639\u0635\u0631", pages: 0.5 },
+    { number: 104, name: "Al-Humazah", arabic: "\u0627\u0644\u0647\u0645\u0632\u0629", pages: 0.5 },
+    { number: 105, name: "Al-Fil", arabic: "\u0627\u0644\u0641\u064a\u0644", pages: 0.5 },
+    { number: 106, name: "Quraysh", arabic: "\u0642\u0631\u064a\u0634", pages: 0.5 },
+    { number: 107, name: "Al-Ma'un", arabic: "\u0627\u0644\u0645\u0627\u0639\u0648\u0646", pages: 0.5 },
+    { number: 108, name: "Al-Kawthar", arabic: "\u0627\u0644\u0643\u0648\u062b\u0631", pages: 0.5 },
+    { number: 109, name: "Al-Kafirun", arabic: "\u0627\u0644\u0643\u0627\u0641\u0631\u0648\u0646", pages: 0.5 },
+    { number: 110, name: "An-Nasr", arabic: "\u0627\u0644\u0646\u0635\u0631", pages: 0.5 },
+    { number: 111, name: "Al-Masad", arabic: "\u0627\u0644\u0645\u0633\u062f", pages: 0.5 },
+    { number: 112, name: "Al-Ikhlas", arabic: "\u0627\u0644\u0625\u062e\u0644\u0627\u0635", pages: 0.5 },
+    { number: 113, name: "Al-Falaq", arabic: "\u0627\u0644\u0641\u0644\u0642", pages: 0.5 },
+    { number: 114, name: "An-Nas", arabic: "\u0627\u0644\u0646\u0627\u0633", pages: 0.5 },
+  ];
+
+  function getSurah(num) {
+    return SURAHS.find(s => s.number === num);
+  }
+
+  // ============================================================
+  // STATE
+  // ============================================================
+  let state = {
+    user: localStorage.getItem('userName') || null,
+    currentTab: 'home',
+    pools: [],
+    selectedPoolId: null,
+    poolSurahMap: {},      // poolId -> [surah_number, ...]
+    allPoolSurahs: {},     // surah_number -> { pool_id, pool_name }
+    todayData: null,
+    calYear: new Date().getFullYear(),
+    calMonth: new Date().getMonth(),
+    calPoolFilter: null,   // null = all
+    calScheduleData: {},   // poolId -> { schedule, items }
+    reportData: [],
+    reportSort: 'surah',
+    reportSortAsc: true,
+    currentDoneItemId: null,
+    currentPartialItem: null,
+    deletePoolId: null,
+  };
+
+  // ============================================================
+  // API HELPERS
+  // ============================================================
+  async function api(method, path, body) {
+    const opts = { method, headers: {}, credentials: 'same-origin' };
+    if (body) {
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(body);
+    }
+    const res = await fetch(path, opts);
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || `Request failed (${res.status})`);
+    }
+    return data;
+  }
+
+  // ============================================================
+  // AUTH
+  // ============================================================
+  async function handleLogin() {
+    const name = document.getElementById('auth-name').value.trim();
+    const pin = document.getElementById('auth-pin').value.trim();
+    const errEl = document.getElementById('auth-error');
+    errEl.classList.add('hidden');
+
+    if (!name || !pin) {
+      errEl.textContent = 'Please enter your name and PIN.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    try {
+      const data = await api('POST', '/api/auth/login', { name, pin });
+      state.user = data.name;
+      localStorage.setItem('userName', data.name);
+      showApp();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.classList.remove('hidden');
+    }
+  }
+
+  async function handleRegister() {
+    const name = document.getElementById('auth-name').value.trim();
+    const pin = document.getElementById('auth-pin').value.trim();
+    const errEl = document.getElementById('auth-error');
+    errEl.classList.add('hidden');
+
+    if (!name) {
+      errEl.textContent = 'Please enter a name.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    if (!/^\d{5}$/.test(pin)) {
+      errEl.textContent = 'PIN must be exactly 5 digits.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    try {
+      const data = await api('POST', '/api/auth/register', { name, pin });
+      state.user = data.name;
+      localStorage.setItem('userName', data.name);
+      showApp();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.classList.remove('hidden');
+    }
+  }
+
+  function handleLogout() {
+    state.user = null;
+    localStorage.removeItem('userName');
+    document.getElementById('app-shell').classList.remove('active');
+    document.getElementById('login-screen').classList.add('active');
+    // Clear form
+    document.getElementById('auth-name').value = '';
+    document.getElementById('auth-pin').value = '';
+    document.getElementById('auth-error').classList.add('hidden');
+  }
+
+  // ============================================================
+  // NAVIGATION
+  // ============================================================
+  function switchTab(tab) {
+    state.currentTab = tab;
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      const isActive = btn.dataset.tab === tab;
+      btn.classList.toggle('active', isActive);
+      btn.querySelector('.tab-icon').classList.toggle('text-primary-600', isActive);
+      btn.querySelector('.tab-icon').classList.toggle('text-gray-400', !isActive);
+      btn.querySelector('span').classList.toggle('text-primary-600', isActive);
+      btn.querySelector('span').classList.toggle('text-gray-400', !isActive);
+    });
+
+    // Show/hide screens
+    document.querySelectorAll('main > .screen').forEach(s => s.classList.remove('active'));
+    const screenEl = document.getElementById('screen-' + tab);
+    if (screenEl) {
+      screenEl.classList.add('active');
+    }
+
+    // Load data for tab
+    if (tab === 'home') loadToday();
+    if (tab === 'pools') loadPools();
+    if (tab === 'calendar') loadCalendar();
+    if (tab === 'reports') loadReports();
+  }
+
+  function showApp() {
+    document.getElementById('login-screen').classList.remove('active');
+    document.getElementById('app-shell').classList.add('active');
+    document.getElementById('user-greeting').textContent = state.user;
+    switchTab('home');
+  }
+
+  // ============================================================
+  // HOME / DASHBOARD
+  // ============================================================
+  async function loadToday() {
+    const loading = document.getElementById('today-loading');
+    const content = document.getElementById('today-content');
+    const empty = document.getElementById('today-empty');
+    const dateEl = document.getElementById('today-date');
+    const greetEl = document.getElementById('today-greeting');
+
+    loading.classList.remove('hidden');
+    content.classList.add('hidden');
+    empty.classList.add('hidden');
+
+    const now = new Date();
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    dateEl.textContent = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+
+    const hour = now.getHours();
+    let greeting = 'Good evening';
+    if (hour < 12) greeting = 'Good morning';
+    else if (hour < 17) greeting = 'Good afternoon';
+    greetEl.textContent = `${greeting}, ${state.user}`;
+
+    try {
+      const data = await api('GET', '/api/today');
+      state.todayData = data.pools;
+      loading.classList.add('hidden');
+
+      if (!data.pools || data.pools.length === 0) {
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      content.classList.remove('hidden');
+      content.innerHTML = '';
+
+      for (const pool of data.pools) {
+        const poolCard = document.createElement('div');
+        poolCard.className = 'bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden';
+
+        const header = document.createElement('div');
+        header.className = 'px-4 py-3 bg-gradient-to-r from-primary-50 to-primary-100 border-b border-primary-100';
+        header.innerHTML = `
+          <h3 class="font-semibold text-primary-800">${escHtml(pool.pool_name)}</h3>
+          <p class="text-xs text-primary-600">Day ${pool.day_number} of ${pool.total_days}</p>
+        `;
+        poolCard.appendChild(header);
+
+        const list = document.createElement('div');
+        list.className = 'divide-y divide-gray-50';
+
+        for (const item of pool.items) {
+          const surah = getSurah(item.surah_number);
+          const itemEl = document.createElement('div');
+          itemEl.className = 'px-4 py-3';
+          itemEl.id = 'today-item-' + item.id;
+
+          const pages = item.pages;
+          const statusClass = item.status === 'done' ? 'bg-green-50 border-green-200' :
+                              item.status === 'partial' ? 'bg-yellow-50 border-yellow-200' : '';
+
+          itemEl.innerHTML = `
+            <div class="flex items-start justify-between gap-3 ${statusClass ? 'rounded-lg p-2 border ' + statusClass : ''}">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-semibold text-gray-800">${escHtml(item.surah_name)}</span>
+                  <span class="font-arabic text-base text-gray-500" dir="rtl">${escHtml(surah ? surah.arabic : item.arabic)}</span>
+                </div>
+                <p class="text-xs text-gray-400 mt-0.5">Pages ${item.start_page} - ${item.end_page} (${pages} pg)</p>
+              </div>
+              <div class="flex items-center gap-2 shrink-0" id="item-actions-${item.id}">
+                ${renderItemActions(item)}
+              </div>
+            </div>
+          `;
+          list.appendChild(itemEl);
+        }
+
+        poolCard.appendChild(list);
+        content.appendChild(poolCard);
+      }
+    } catch (e) {
+      loading.classList.add('hidden');
+      // If auth fails, redirect to login
+      if (e.message.includes('401') || e.message.includes('Unauthorized')) {
+        handleLogout();
+        return;
+      }
+      content.classList.remove('hidden');
+      content.innerHTML = `<div class="text-center py-8 text-red-500 text-sm">${escHtml(e.message)}</div>`;
+    }
+  }
+
+  function renderItemActions(item) {
+    if (item.status === 'done') {
+      return `
+        <div class="flex items-center gap-1.5">
+          <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+          <span class="text-xs font-medium ${qualityColor(item.quality)}">${item.quality}/20</span>
+        </div>
+      `;
+    }
+    if (item.status === 'partial') {
+      return `
+        <div class="flex items-center gap-1.5">
+          <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+          <span class="text-xs font-medium ${qualityColor(item.quality)}">${item.quality}/20</span>
+        </div>
+      `;
+    }
+    return `
+      <button onclick="openDoneModal(${item.id}, '${escAttr(item.surah_name)}', ${item.start_page}, ${item.end_page})"
+        class="px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition active:scale-95">
+        Done
+      </button>
+      <button onclick="openPartialModal(${item.id}, '${escAttr(item.surah_name)}', ${item.start_page}, ${item.end_page})"
+        class="px-3 py-1.5 bg-gold-500 text-white text-xs font-medium rounded-lg hover:bg-gold-600 transition active:scale-95">
+        Partial
+      </button>
+    `;
+  }
+
+  function qualityColor(q) {
+    if (q >= 15) return 'text-green-600';
+    if (q >= 8) return 'text-yellow-600';
+    return 'text-red-500';
+  }
+
+  function qualityBgColor(q) {
+    if (q >= 15) return 'bg-green-100 text-green-700';
+    if (q >= 8) return 'bg-yellow-100 text-yellow-700';
+    return 'bg-red-100 text-red-700';
+  }
+
+  // Done modal
+  function openDoneModal(itemId, name, startPage, endPage) {
+    state.currentDoneItemId = itemId;
+    document.getElementById('done-item-label').textContent = `${name} (pages ${startPage}-${endPage})`;
+    document.getElementById('done-quality').value = 10;
+    updateQualityLabel('done');
+    openModal('modal-done');
+  }
+
+  function updateQualityLabel(prefix) {
+    const val = document.getElementById(prefix + '-quality').value;
+    const label = document.getElementById(prefix + '-quality-value');
+    label.textContent = val;
+
+    const num = parseInt(val);
+    if (num >= 15) { label.className = 'text-sm font-bold text-green-600'; }
+    else if (num >= 8) { label.className = 'text-sm font-bold text-yellow-600'; }
+    else { label.className = 'text-sm font-bold text-red-500'; }
+
+    // Update slider background gradient position
+    const slider = document.getElementById(prefix + '-quality');
+    const pct = ((num - 1) / 19) * 100;
+    slider.style.background = `linear-gradient(to right, #ef4444 0%, #f59e0b 50%, #10b981 100%)`;
+  }
+
+  async function confirmDone() {
+    const quality = parseInt(document.getElementById('done-quality').value);
+    try {
+      await api('PATCH', `/api/item/${state.currentDoneItemId}/done`, { quality });
+      closeModal('modal-done');
+      loadToday();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  // Partial modal
+  function openPartialModal(itemId, name, startPage, endPage) {
+    state.currentPartialItem = { id: itemId, name, startPage, endPage };
+    document.getElementById('partial-item-label').textContent = `${name} (pages ${startPage}-${endPage})`;
+    document.getElementById('partial-page').value = '';
+    document.getElementById('partial-page').min = startPage + 0.5;
+    document.getElementById('partial-page').max = endPage - 0.5;
+    document.getElementById('partial-page-hint').textContent = `Enter a value between ${startPage + 0.5} and ${endPage - 0.5}`;
+    document.getElementById('partial-quality').value = 10;
+    document.getElementById('partial-error').classList.add('hidden');
+    updateQualityLabel('partial');
+    openModal('modal-partial');
+  }
+
+  async function confirmPartial() {
+    const page = parseFloat(document.getElementById('partial-page').value);
+    const quality = parseInt(document.getElementById('partial-quality').value);
+    const errEl = document.getElementById('partial-error');
+    errEl.classList.add('hidden');
+
+    if (!page || isNaN(page)) {
+      errEl.textContent = 'Please enter the page where you stopped.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    try {
+      await api('PATCH', `/api/item/${state.currentPartialItem.id}/partial`, {
+        stopped_at_page: page,
+        quality
+      });
+      closeModal('modal-partial');
+      loadToday();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.classList.remove('hidden');
+    }
+  }
+
+  // ============================================================
+  // POOL MANAGEMENT
+  // ============================================================
+  async function loadPools() {
+    try {
+      const data = await api('GET', '/api/pools');
+      state.pools = data.pools || [];
+
+      // Build allPoolSurahs map
+      state.allPoolSurahs = {};
+      state.poolSurahMap = {};
+
+      // Load surahs for each pool
+      for (const pool of state.pools) {
+        try {
+          const sData = await api('GET', `/api/pools/${pool.id}/surahs`);
+          state.poolSurahMap[pool.id] = (sData.surahs || []).map(s => s.surah_number);
+          for (const s of (sData.surahs || [])) {
+            state.allPoolSurahs[s.surah_number] = { pool_id: pool.id, pool_name: pool.name };
+          }
+        } catch (e) {
+          state.poolSurahMap[pool.id] = [];
+        }
+      }
+
+      if (!state.selectedPoolId && state.pools.length > 0) {
+        state.selectedPoolId = state.pools[0].id;
+      }
+
+      renderPoolTabs();
+      renderSurahList();
+      updatePoolSummary();
+    } catch (e) {
+      if (e.message.includes('401') || e.message.includes('Unauthorized')) {
+        handleLogout();
+      }
+    }
+  }
+
+  function renderPoolTabs() {
+    const container = document.getElementById('pool-tabs');
+    container.innerHTML = '';
+
+    for (const pool of state.pools) {
+      const btn = document.createElement('button');
+      const isActive = pool.id === state.selectedPoolId;
+      btn.className = `px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition flex items-center gap-2 ${
+        isActive ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+      }`;
+      btn.innerHTML = `
+        <span>${escHtml(pool.name)}</span>
+        ${pool.is_system === 0 ? `<button onclick="event.stopPropagation(); openDeletePoolModal(${pool.id})" class="ml-1 opacity-60 hover:opacity-100">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>` : ''}
+      `;
+      btn.onclick = () => { state.selectedPoolId = pool.id; renderPoolTabs(); renderSurahList(); updatePoolSummary(); };
+      container.appendChild(btn);
+    }
+  }
+
+  function renderSurahList() {
+    const container = document.getElementById('surah-list');
+    const searchTerm = (document.getElementById('surah-search').value || '').toLowerCase();
+    container.innerHTML = '';
+
+    const filtered = SURAHS.filter(s =>
+      s.name.toLowerCase().includes(searchTerm) ||
+      s.arabic.includes(searchTerm) ||
+      s.number.toString().includes(searchTerm)
+    );
+
+    for (const surah of filtered) {
+      const inPool = state.allPoolSurahs[surah.number];
+      const isInCurrent = inPool && inPool.pool_id === state.selectedPoolId;
+      const isInOther = inPool && inPool.pool_id !== state.selectedPoolId;
+
+      const el = document.createElement('div');
+      el.className = `flex items-center gap-3 p-3 rounded-xl transition cursor-pointer ${
+        isInCurrent ? 'bg-primary-50 border border-primary-200' :
+        isInOther ? 'bg-gray-50 border border-gray-100 opacity-60' :
+        'bg-white border border-gray-100 hover:border-primary-200 hover:bg-primary-50/50'
+      }`;
+
+      el.onclick = () => toggleSurahInPool(surah.number);
+
+      el.innerHTML = `
+        <div class="w-8 h-8 rounded-full ${isInCurrent ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-500'} flex items-center justify-center text-xs font-bold shrink-0">
+          ${surah.number}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-medium text-gray-800 truncate">${escHtml(surah.name)}</span>
+            <span class="font-arabic text-base text-gray-400" dir="rtl">${escHtml(surah.arabic)}</span>
+          </div>
+          <p class="text-xs text-gray-400">${surah.pages} pages</p>
+        </div>
+        <div class="shrink-0">
+          ${isInCurrent ? '<span class="inline-block px-2 py-0.5 bg-primary-100 text-primary-700 text-xs font-medium rounded-full">Added</span>' :
+            isInOther ? `<span class="inline-block px-2 py-0.5 bg-gray-200 text-gray-500 text-xs rounded-full">in ${escHtml(inPool.pool_name)}</span>` :
+            '<span class="text-gray-300"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg></span>'}
+        </div>
+      `;
+
+      container.appendChild(el);
+    }
+  }
+
+  function filterSurahs() {
+    renderSurahList();
+  }
+
+  async function toggleSurahInPool(surahNumber) {
+    const inPool = state.allPoolSurahs[surahNumber];
+    const isInCurrent = inPool && inPool.pool_id === state.selectedPoolId;
+
+    try {
+      if (isInCurrent) {
+        // Remove from current pool
+        await api('DELETE', `/api/pools/${state.selectedPoolId}/surahs/${surahNumber}`);
+      } else if (inPool) {
+        // Move from other pool to current pool
+        await api('POST', `/api/pools/${state.selectedPoolId}/surahs/${surahNumber}/move`);
+      } else {
+        // Add to current pool
+        await api('POST', `/api/pools/${state.selectedPoolId}/surahs`, { surah_number: surahNumber });
+      }
+      await loadPools();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  function updatePoolSummary() {
+    const surahs = state.poolSurahMap[state.selectedPoolId] || [];
+    const totalPages = surahs.reduce((sum, num) => {
+      const s = getSurah(num);
+      return sum + (s ? s.pages : 0);
+    }, 0);
+    document.getElementById('pool-summary-text').textContent = `${surahs.length} surahs, ${totalPages} pages`;
+
+    const genBtn = document.getElementById('generate-schedule-btn');
+    genBtn.disabled = surahs.length === 0;
+    genBtn.classList.toggle('opacity-50', surahs.length === 0);
+    genBtn.classList.toggle('cursor-not-allowed', surahs.length === 0);
+  }
+
+  // Create pool
+  function openCreatePoolModal() {
+    document.getElementById('create-pool-name').value = '';
+    document.getElementById('create-pool-error').classList.add('hidden');
+    openModal('modal-create-pool');
+  }
+
+  async function createPool() {
+    const name = document.getElementById('create-pool-name').value.trim();
+    const errEl = document.getElementById('create-pool-error');
+    errEl.classList.add('hidden');
+
+    if (!name) {
+      errEl.textContent = 'Please enter a pool name.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    try {
+      const data = await api('POST', '/api/pools', { name });
+      closeModal('modal-create-pool');
+      state.selectedPoolId = data.id;
+      await loadPools();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.classList.remove('hidden');
+    }
+  }
+
+  // Delete pool
+  function openDeletePoolModal(poolId) {
+    state.deletePoolId = poolId;
+    openModal('modal-delete-pool');
+  }
+
+  async function confirmDeletePool() {
+    try {
+      await api('DELETE', `/api/pools/${state.deletePoolId}`);
+      closeModal('modal-delete-pool');
+      state.selectedPoolId = null;
+      await loadPools();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  // Schedule
+  function openScheduleModal() {
+    if ((state.poolSurahMap[state.selectedPoolId] || []).length === 0) return;
+
+    // Default start date = tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    document.getElementById('schedule-start').value = formatDate(tomorrow);
+    document.getElementById('schedule-days').value = '10';
+    document.getElementById('schedule-error').classList.add('hidden');
+    document.getElementById('schedule-preview').classList.add('hidden');
+    openModal('modal-schedule');
+  }
+
+  async function previewSchedule() {
+    const days = parseInt(document.getElementById('schedule-days').value);
+    const startDate = document.getElementById('schedule-start').value;
+    const errEl = document.getElementById('schedule-error');
+    errEl.classList.add('hidden');
+
+    if (!days || days < 1) {
+      errEl.textContent = 'Enter a valid number of days.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    if (!startDate) {
+      errEl.textContent = 'Select a start date.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    try {
+      const data = await api('POST', '/api/schedule/generate', {
+        pool_id: state.selectedPoolId,
+        total_days: days,
+        start_date: startDate,
+      });
+
+      const previewEl = document.getElementById('schedule-preview');
+      const listEl = document.getElementById('schedule-preview-list');
+      previewEl.classList.remove('hidden');
+      listEl.innerHTML = '';
+
+      for (const day of data.days) {
+        const dayEl = document.createElement('div');
+        dayEl.className = 'bg-gray-50 rounded-lg p-2.5';
+        dayEl.innerHTML = `
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold text-gray-700">Day ${day.day_number}</span>
+            <span class="text-xs text-gray-400">${day.date}</span>
+          </div>
+          <div class="space-y-0.5">
+            ${day.chunks.map(c => `
+              <div class="text-xs text-gray-600">${escHtml(c.surah_name)} (${c.start_page}-${c.end_page}, ${c.pages} pg)</div>
+            `).join('')}
+          </div>
+        `;
+        listEl.appendChild(dayEl);
+      }
+
+      // Show pages per day
+      const summaryEl = document.createElement('div');
+      summaryEl.className = 'mt-2 text-xs text-primary-600 font-medium';
+      summaryEl.textContent = `~${Math.round(data.pages_per_day * 10) / 10} pages/day | ${data.total_pages} total pages`;
+      listEl.appendChild(summaryEl);
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.classList.remove('hidden');
+    }
+  }
+
+  async function activateSchedule() {
+    const days = parseInt(document.getElementById('schedule-days').value);
+    const startDate = document.getElementById('schedule-start').value;
+    const errEl = document.getElementById('schedule-error');
+    errEl.classList.add('hidden');
+
+    if (!days || days < 1 || !startDate) {
+      errEl.textContent = 'Enter valid days and start date.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    try {
+      await api('POST', '/api/schedule/activate', {
+        pool_id: state.selectedPoolId,
+        total_days: days,
+        start_date: startDate,
+      });
+      closeModal('modal-schedule');
+      switchTab('home');
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.classList.remove('hidden');
+    }
+  }
+
+  // ============================================================
+  // CALENDAR
+  // ============================================================
+  async function loadCalendar() {
+    // Load pools if not already
+    if (state.pools.length === 0) {
+      try {
+        const data = await api('GET', '/api/pools');
+        state.pools = data.pools || [];
+      } catch (e) { return; }
+    }
+
+    // Load schedule data for all pools
+    state.calScheduleData = {};
+    for (const pool of state.pools) {
+      try {
+        const data = await api('GET', `/api/schedule/${pool.id}`);
+        state.calScheduleData[pool.id] = data;
+      } catch (e) {
+        // No active schedule for this pool
+      }
+    }
+
+    renderCalPoolFilter();
+    renderCalendar();
+  }
+
+  function renderCalPoolFilter() {
+    const container = document.getElementById('cal-pool-filter');
+    container.innerHTML = '';
+
+    const allBtn = document.createElement('button');
+    allBtn.className = `px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition ${
+      state.calPoolFilter === null ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+    }`;
+    allBtn.textContent = 'All Pools';
+    allBtn.onclick = () => { state.calPoolFilter = null; renderCalPoolFilter(); renderCalendar(); };
+    container.appendChild(allBtn);
+
+    for (const pool of state.pools) {
+      const btn = document.createElement('button');
+      btn.className = `px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition ${
+        state.calPoolFilter === pool.id ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+      }`;
+      btn.textContent = pool.name;
+      btn.onclick = () => { state.calPoolFilter = pool.id; renderCalPoolFilter(); renderCalendar(); };
+      container.appendChild(btn);
+    }
+  }
+
+  function calPrevMonth() {
+    state.calMonth--;
+    if (state.calMonth < 0) { state.calMonth = 11; state.calYear--; }
+    renderCalendar();
+  }
+
+  function calNextMonth() {
+    state.calMonth++;
+    if (state.calMonth > 11) { state.calMonth = 0; state.calYear++; }
+    renderCalendar();
+  }
+
+  function renderCalendar() {
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    document.getElementById('cal-month-label').textContent = `${months[state.calMonth]} ${state.calYear}`;
+    document.getElementById('cal-day-detail').classList.add('hidden');
+
+    const grid = document.getElementById('cal-grid');
+    grid.innerHTML = '';
+
+    const firstDay = new Date(state.calYear, state.calMonth, 1).getDay();
+    const daysInMonth = new Date(state.calYear, state.calMonth + 1, 0).getDate();
+    const todayStr = formatDate(new Date());
+
+    // Build a map: date -> items
+    const dateItems = buildDateItemsMap();
+
+    // Empty cells before first day
+    for (let i = 0; i < firstDay; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'cal-day';
+      grid.appendChild(cell);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${state.calYear}-${String(state.calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const items = dateItems[dateStr] || [];
+      const isToday = dateStr === todayStr;
+
+      const cell = document.createElement('div');
+      cell.className = `cal-day flex flex-col items-center justify-center rounded-lg p-1 cursor-pointer transition ${
+        isToday ? 'ring-2 ring-primary-500 bg-primary-50' : 'hover:bg-gray-50'
+      }`;
+
+      const dayNum = document.createElement('span');
+      dayNum.className = `text-sm ${isToday ? 'font-bold text-primary-700' : 'text-gray-700'}`;
+      dayNum.textContent = d;
+      cell.appendChild(dayNum);
+
+      if (items.length > 0) {
+        const totalPages = items.reduce((s, it) => s + (it.end_page - it.start_page), 0);
+        const allDone = items.every(it => it.status === 'done');
+        const anyPartial = items.some(it => it.status === 'partial');
+        const allPending = items.every(it => it.status === 'pending');
+
+        const now = new Date();
+        const cellDate = new Date(state.calYear, state.calMonth, d);
+        const isPast = cellDate < new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        let dotColor = 'bg-gray-300'; // upcoming
+        if (allDone) dotColor = 'bg-green-500';
+        else if (anyPartial) dotColor = 'bg-yellow-500';
+        else if (isPast && allPending) dotColor = 'bg-red-400';
+
+        const dot = document.createElement('div');
+        dot.className = `w-1.5 h-1.5 rounded-full ${dotColor} mt-0.5`;
+        cell.appendChild(dot);
+
+        const badge = document.createElement('span');
+        badge.className = 'text-[8px] text-gray-400';
+        badge.textContent = `${totalPages}p`;
+        cell.appendChild(badge);
+      }
+
+      cell.onclick = () => showDayDetail(dateStr, items);
+      grid.appendChild(cell);
+    }
+  }
+
+  function buildDateItemsMap() {
+    const map = {};
+    for (const pool of state.pools) {
+      if (state.calPoolFilter !== null && state.calPoolFilter !== pool.id) continue;
+      const schedData = state.calScheduleData[pool.id];
+      if (!schedData || !schedData.schedule || !schedData.items) continue;
+
+      const startDate = schedData.schedule.start_date;
+      for (const item of schedData.items) {
+        const dateStr = addDays(startDate, item.day_number - 1);
+        if (!map[dateStr]) map[dateStr] = [];
+        map[dateStr].push({ ...item, pool_name: pool.name });
+      }
+    }
+    return map;
+  }
+
+  function showDayDetail(dateStr, items) {
+    const detail = document.getElementById('cal-day-detail');
+    if (items.length === 0) {
+      detail.classList.add('hidden');
+      return;
+    }
+    detail.classList.remove('hidden');
+
+    const formattedDate = new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', {
+      weekday: 'long', month: 'long', day: 'numeric'
+    });
+
+    detail.innerHTML = `
+      <h4 class="text-sm font-semibold text-gray-800 mb-2">${formattedDate}</h4>
+      <div class="space-y-2">
+        ${items.map(item => {
+          const surah = getSurah(item.surah_number);
+          const statusBadge = item.status === 'done'
+            ? `<span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">Done ${item.quality ? item.quality + '/20' : ''}</span>`
+            : item.status === 'partial'
+            ? `<span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full">Partial ${item.quality ? item.quality + '/20' : ''}</span>`
+            : `<span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full">Pending</span>`;
+
+          return `
+            <div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+              <div>
+                <span class="text-xs font-medium text-gray-700">${escHtml(surah ? surah.name : 'Surah ' + item.surah_number)}</span>
+                <span class="font-arabic text-sm text-gray-400 ml-1" dir="rtl">${escHtml(surah ? surah.arabic : '')}</span>
+                <p class="text-[10px] text-gray-400">Pages ${item.start_page}-${item.end_page} | ${escHtml(item.pool_name || '')}</p>
+              </div>
+              ${statusBadge}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  // ============================================================
+  // REPORTS
+  // ============================================================
+  async function loadReports() {
+    try {
+      const data = await api('GET', '/api/reports');
+      state.reportData = data.stats || [];
+      renderReports();
+    } catch (e) {
+      if (e.message.includes('401') || e.message.includes('Unauthorized')) {
+        handleLogout();
+      }
+    }
+  }
+
+  function renderReports() {
+    const stats = [...state.reportData];
+    const list = document.getElementById('report-list');
+    const empty = document.getElementById('report-empty');
+    const totalEl = document.getElementById('report-total');
+    const avgEl = document.getElementById('report-avg');
+
+    // Summary
+    const totalRecitations = stats.reduce((s, r) => s + r.times_recited, 0);
+    totalEl.textContent = totalRecitations;
+
+    if (stats.length > 0) {
+      const avgQ = stats.reduce((s, r) => s + r.avg_quality * r.times_recited, 0) / totalRecitations;
+      avgEl.textContent = Math.round(avgQ * 10) / 10 + '/20';
+      avgEl.className = `text-2xl font-bold mt-1 ${qualityColor(Math.round(avgQ))}`;
+    } else {
+      avgEl.textContent = '-';
+    }
+
+    // Sort
+    const sortKey = state.reportSort;
+    const asc = state.reportSortAsc;
+    stats.sort((a, b) => {
+      let va, vb;
+      switch (sortKey) {
+        case 'surah': va = a.surah_number; vb = b.surah_number; break;
+        case 'times': va = a.times_recited; vb = b.times_recited; break;
+        case 'quality': va = a.avg_quality; vb = b.avg_quality; break;
+        case 'last': va = a.last_recited; vb = b.last_recited; break;
+        default: va = a.surah_number; vb = b.surah_number;
+      }
+      if (va < vb) return asc ? -1 : 1;
+      if (va > vb) return asc ? 1 : -1;
+      return 0;
+    });
+
+    // Highlight active sort button
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+      const isActive = btn.dataset.sort === sortKey;
+      btn.className = `sort-btn px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap ${
+        isActive ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+      }`;
+    });
+
+    if (stats.length === 0) {
+      list.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+
+    empty.classList.add('hidden');
+    list.innerHTML = '';
+
+    for (const row of stats) {
+      const surah = getSurah(row.surah_number);
+      const el = document.createElement('div');
+      el.className = 'bg-white rounded-xl p-3 shadow-sm border border-gray-100';
+      el.innerHTML = `
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-semibold text-gray-800">${row.surah_number}. ${escHtml(row.name)}</span>
+              <span class="font-arabic text-base text-gray-400" dir="rtl">${escHtml(row.arabic)}</span>
+            </div>
+            <div class="flex items-center gap-3 mt-1">
+              <span class="text-xs text-gray-400">${row.times_recited}x recited</span>
+              <span class="text-xs text-gray-400">Last: ${row.last_recited ? formatShortDate(row.last_recited) : '-'}</span>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="inline-block px-2.5 py-1 rounded-lg text-xs font-bold ${qualityBgColor(Math.round(row.avg_quality))}">${row.avg_quality}/20</span>
+            <p class="text-[10px] text-gray-400 mt-1">Min ${row.min_quality} / Max ${row.max_quality}</p>
+          </div>
+        </div>
+      `;
+      list.appendChild(el);
+    }
+  }
+
+  function sortReports(key) {
+    if (state.reportSort === key) {
+      state.reportSortAsc = !state.reportSortAsc;
+    } else {
+      state.reportSort = key;
+      state.reportSortAsc = key === 'surah';
+    }
+    renderReports();
+  }
+
+  async function downloadBackup() {
+    try {
+      const data = await api('GET', '/api/reports/backup');
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `quran-memorizer-backup-${formatDate(new Date())}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Failed to download backup: ' + e.message);
+    }
+  }
+
+  // ============================================================
+  // MODAL HELPERS
+  // ============================================================
+  function openModal(id) {
+    document.getElementById(id).classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  // ============================================================
+  // UTILITY FUNCTIONS
+  // ============================================================
+  function escHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function escAttr(str) {
+    return (str || '').replace(/'/g, "\\'").replace(/"/g, '\\"');
+  }
+
+  function formatDate(d) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function formatShortDate(dateStr) {
+    if (!dateStr) return '-';
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch { return dateStr; }
+  }
+
+  function addDays(dateStr, days) {
+    const d = new Date(dateStr + 'T12:00:00');
+    d.setDate(d.getDate() + days);
+    return formatDate(d);
+  }
+
+  // ============================================================
+  // INITIALIZATION
+  // ============================================================
+  (function init() {
+    // Check if user might be logged in (has name in localStorage)
+    if (state.user) {
+      // Try loading today's data - if it fails (401), go to login
+      showApp();
+    }
+    // else stay on login screen (already active by default)
+
+    // Enter key support for login form
+    document.getElementById('auth-pin').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleLogin();
+    });
+    document.getElementById('auth-name').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('auth-pin').focus();
+    });
+
+    // Enter key for create pool modal
+    document.getElementById('create-pool-name').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') createPool();
+    });
+  })();
+  </script>
+</body>
+</html>

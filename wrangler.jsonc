@@ -2,6 +2,7 @@
   "name": "quran-memorizer",
   "main": "src/index.ts",
   "compatibility_date": "2024-12-01",
+  "rules": [{ "type": "Text", "globs": ["**/*.html"] }],
   "d1_databases": [
     {
       "binding": "DB",

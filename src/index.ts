@@ -5,6 +5,7 @@ import { schedule, todayHandler } from "./routes/schedule";
 import { items } from "./routes/items";
 import { reports } from "./routes/reports";
 import { authMiddleware } from "./auth";
+import html from "./frontend/index.html";
 
 type Bindings = { DB: D1Database; JWT_SECRET: string };
 type Variables = { userId: number };
@@ -24,7 +25,7 @@ api.route("/reports", reports);
 api.get("/today", todayHandler);
 app.route("/api", api);
 
-// Frontend placeholder
-app.get("/", (c) => c.text("Quran Memorizer"));
+// Frontend
+app.get("/", (c) => c.html(html));
 
 export default app;
