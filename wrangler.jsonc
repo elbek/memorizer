@@ -7,10 +7,10 @@
     {
       "binding": "DB",
       "database_name": "quran-memorizer-db",
-      "database_id": "local"
+      "database_id": "3a465292-b4c5-4f8f-b530-ff5548b8e987"
     }
   ],
-  "vars": {
-    "JWT_SECRET": "change-me-in-production"
-  }
+  // JWT_SECRET is set via `npx wrangler secret put JWT_SECRET`
+  // For local dev, wrangler uses a default. Set in .dev.vars if needed.
+  "vars": {}
 }
