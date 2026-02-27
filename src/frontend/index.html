@@ -169,7 +169,10 @@
     .full-read-mode #screen-quran > div { padding: 0 !important; }
     .full-read-mode #quran-nav-bar { display: none !important; }
     .full-read-mode #quran-page-info { display: none !important; }
-    .full-read-mode #quran-page-container { border-radius: 0; border: none; min-height: 100dvh; max-width: none; padding: 8px; margin: 0; }
+    .full-read-mode { background: inherit; }
+    .full-read-mode #screen-quran { display: flex; flex-direction: column; min-height: 100dvh; }
+    .full-read-mode #screen-quran > div { flex: 1; padding: 0 !important; display: flex; flex-direction: column; }
+    .full-read-mode #quran-page-container { border-radius: 0; border: none; min-height: 0; flex: 1; max-width: none; padding: 8px; margin: 0; }
 
     /* Surah header ornamental frame */
     .surah-header-wrapper {
