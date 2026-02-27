@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           colors: {
@@ -27,11 +28,14 @@
   <style>
     * { -webkit-tap-highlight-color: transparent; }
     body { background: #fefdfb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    html.dark body { background: #111827; }
     .screen { display: none; }
     .screen.active { display: block; }
     .tab-btn.active { color: #059669; }
     .tab-btn.active .tab-icon { color: #059669; }
     .tab-btn.active .tab-dot { background: #059669; }
+    html.dark .tab-btn.active { color: #34d399; }
+    html.dark .tab-btn.active .tab-icon { color: #34d399; }
 
     /* Custom range slider */
     input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; border-radius: 4px; outline: none; }
@@ -48,6 +52,8 @@
       cursor: pointer; border: 3px solid white;
       box-shadow: 0 2px 6px rgba(0,0,0,0.2);
     }
+    html.dark input[type="range"]::-webkit-slider-thumb { border-color: #1f2937; }
+    html.dark input[type="range"]::-moz-range-thumb { border-color: #1f2937; }
 
     /* Transition for screens */
     .fade-in { animation: fadeIn 0.25s ease-in-out; }
@@ -55,11 +61,13 @@
 
     /* Modal backdrop */
     .modal-backdrop { background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); }
+    html.dark .modal-backdrop { background: rgba(0,0,0,0.6); }
 
     /* Scrollbar styling */
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+    html.dark ::-webkit-scrollbar-thumb { background: #4b5563; }
 
     /* Pin input styling */
     .pin-input { letter-spacing: 0.5em; text-align: center; font-size: 1.5rem; }
@@ -73,7 +81,16 @@
     }
   </style>
 </head>
-<body class="bg-sand-50 text-gray-800 min-h-screen">
+<script>
+  // Apply theme immediately to prevent flash
+  (function() {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    }
+  })();
+</script>
+<body class="bg-sand-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen transition-colors">
 
   <!-- ===================== LOGIN SCREEN ===================== -->
   <div id="login-screen" class="screen active">
@@ -86,24 +103,24 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
             </svg>
           </div>
-          <h1 class="text-2xl font-bold text-gray-900">Quran Memorizer</h1>
-          <p class="text-gray-500 mt-1">Track your memorization journey</p>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Quran Memorizer</h1>
+          <p class="text-gray-500 dark:text-gray-400 mt-1">Track your memorization journey</p>
         </div>
 
         <!-- Login Card -->
-        <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-          <div id="auth-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl"></div>
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+          <div id="auth-error" class="hidden mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm rounded-xl"></div>
 
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">Name</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Name</label>
               <input id="auth-name" type="text" placeholder="Enter your name"
-                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition text-gray-900 bg-gray-50">
+                class="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700">
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">PIN (5 digits)</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">PIN (5 digits)</label>
               <input id="auth-pin" type="password" inputmode="numeric" pattern="\d{5}" maxlength="5" placeholder="*****"
-                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition text-gray-900 bg-gray-50 pin-input">
+                class="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 pin-input">
             </div>
           </div>
 
@@ -113,7 +130,7 @@
               Login
             </button>
             <button onclick="handleRegister()" id="register-btn"
-              class="w-full py-3 bg-white border-2 border-primary-600 text-primary-700 font-semibold rounded-xl hover:bg-primary-50 transition active:scale-[0.98]">
+              class="w-full py-3 bg-white dark:bg-gray-700 border-2 border-primary-600 text-primary-700 dark:text-primary-400 font-semibold rounded-xl hover:bg-primary-50 dark:hover:bg-gray-600 transition active:scale-[0.98]">
               Register
             </button>
           </div>
@@ -127,12 +144,16 @@
   <!-- ===================== APP SHELL ===================== -->
   <div id="app-shell" class="screen">
     <!-- Top bar -->
-    <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-100 px-4 py-3">
+    <header class="sticky top-0 z-30 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border-b border-gray-100 dark:border-gray-700 px-4 py-3">
       <div class="max-w-lg mx-auto flex items-center justify-between">
-        <h1 class="text-lg font-bold text-primary-700">Quran Memorizer</h1>
-        <div class="flex items-center gap-3">
-          <span id="user-greeting" class="text-sm text-gray-500"></span>
-          <button onclick="handleLogout()" class="text-xs text-gray-400 hover:text-red-500 transition px-2 py-1 rounded-lg hover:bg-red-50">
+        <h1 class="text-lg font-bold text-primary-700 dark:text-primary-400">Quran Memorizer</h1>
+        <div class="flex items-center gap-2">
+          <span id="user-greeting" class="text-sm text-gray-500 dark:text-gray-400"></span>
+          <button onclick="toggleTheme()" id="theme-toggle" class="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Toggle theme">
+            <svg id="theme-icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            <svg id="theme-icon-moon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+          </button>
+          <button onclick="handleLogout()" class="text-xs text-gray-400 hover:text-red-500 transition px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30">
             Logout
           </button>
         </div>
@@ -145,8 +166,8 @@
       <div id="screen-home" class="screen active fade-in">
         <div class="py-4">
           <div class="mb-4">
-            <p class="text-sm text-gray-500" id="today-date"></p>
-            <h2 class="text-xl font-bold text-gray-900" id="today-greeting"></h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400" id="today-date"></p>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white" id="today-greeting"></h2>
           </div>
 
           <div id="today-loading" class="text-center py-12">
@@ -157,12 +178,12 @@
           <div id="today-content" class="hidden space-y-4"></div>
 
           <div id="today-empty" class="hidden text-center py-12">
-            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-primary-50 flex items-center justify-center">
+            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center">
               <svg class="w-8 h-8 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
-            <h3 class="text-lg font-semibold text-gray-700">Nothing scheduled for today</h3>
+            <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200">Nothing scheduled for today</h3>
             <p class="text-gray-400 mt-1 text-sm">Set up a schedule in the Pools tab to get started.</p>
             <div id="today-upcoming" class="hidden mt-2"></div>
           </div>
@@ -173,7 +194,7 @@
       <div id="screen-pools" class="screen fade-in">
         <div class="py-4">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-bold text-gray-900">Pool Management</h2>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Pool Management</h2>
             <button onclick="openCreatePoolModal()"
               class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition shadow-sm active:scale-[0.98]">
               + New Pool
@@ -187,15 +208,15 @@
           <div class="mb-3">
             <input id="surah-search" type="text" placeholder="Search surahs..."
               oninput="filterSurahs()"
-              class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white text-sm">
+              class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-gray-800 dark:text-white text-sm">
           </div>
 
           <!-- Surah list -->
           <div id="surah-list" class="space-y-1.5 max-h-[55vh] overflow-y-auto"></div>
 
           <!-- Summary bar -->
-          <div id="pool-summary" class="mt-4 p-3 bg-primary-50 rounded-xl border border-primary-100 flex items-center justify-between">
-            <span id="pool-summary-text" class="text-sm font-medium text-primary-700"></span>
+          <div id="pool-summary" class="mt-4 p-3 bg-primary-50 dark:bg-primary-900/30 rounded-xl border border-primary-100 dark:border-primary-800 flex items-center justify-between">
+            <span id="pool-summary-text" class="text-sm font-medium text-primary-700 dark:text-primary-400"></span>
             <button onclick="openScheduleModal()" id="generate-schedule-btn"
               class="px-4 py-2 bg-gold-500 text-white text-sm font-semibold rounded-xl hover:bg-gold-600 transition shadow-sm active:scale-[0.98]">
               Generate Schedule
@@ -207,7 +228,7 @@
       <!-- Screen: Schedules -->
       <div id="screen-schedules" class="screen fade-in">
         <div class="py-4">
-          <h2 class="text-xl font-bold text-gray-900 mb-4">Schedules</h2>
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Schedules</h2>
           <div id="schedules-loading" class="text-center py-12">
             <div class="inline-block w-8 h-8 border-3 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
           </div>
@@ -222,20 +243,20 @@
       <div id="screen-calendar" class="screen fade-in">
         <div class="py-4">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-bold text-gray-900">Calendar</h2>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Calendar</h2>
           </div>
 
           <!-- Pool filter -->
           <div id="cal-pool-filter" class="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-1 px-1"></div>
 
           <!-- Month navigation -->
-          <div class="flex items-center justify-between mb-3 bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-            <button onclick="calPrevMonth()" class="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center transition">
-              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          <div class="flex items-center justify-between mb-3 bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700">
+            <button onclick="calPrevMonth()" class="w-10 h-10 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center transition">
+              <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </button>
-            <span id="cal-month-label" class="text-base font-semibold text-gray-800"></span>
-            <button onclick="calNextMonth()" class="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center transition">
-              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            <span id="cal-month-label" class="text-base font-semibold text-gray-800 dark:text-gray-100"></span>
+            <button onclick="calNextMonth()" class="w-10 h-10 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center transition">
+              <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </button>
           </div>
 
@@ -254,22 +275,22 @@
           <div id="cal-grid" class="grid grid-cols-7 gap-1"></div>
 
           <!-- Day detail (expanded) -->
-          <div id="cal-day-detail" class="hidden mt-3 bg-white rounded-xl p-4 shadow-sm border border-gray-100"></div>
+          <div id="cal-day-detail" class="hidden mt-3 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"></div>
         </div>
       </div>
 
       <!-- Screen: Reports -->
       <div id="screen-reports" class="screen fade-in">
         <div class="py-4">
-          <h2 class="text-xl font-bold text-gray-900 mb-4">Reports</h2>
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Reports</h2>
 
           <!-- Summary cards -->
           <div class="grid grid-cols-2 gap-3 mb-4">
-            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
               <p class="text-xs text-gray-400 uppercase tracking-wide">Total Recitations</p>
-              <p id="report-total" class="text-2xl font-bold text-primary-700 mt-1">0</p>
+              <p id="report-total" class="text-2xl font-bold text-primary-700 dark:text-primary-400 mt-1">0</p>
             </div>
-            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
               <p class="text-xs text-gray-400 uppercase tracking-wide">Avg Quality</p>
               <p id="report-avg" class="text-2xl font-bold text-gold-600 mt-1">-</p>
             </div>
@@ -277,10 +298,10 @@
 
           <!-- Sort controls -->
           <div class="flex gap-2 mb-3 overflow-x-auto">
-            <button onclick="sortReports('surah')" class="sort-btn px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition whitespace-nowrap" data-sort="surah">Surah #</button>
-            <button onclick="sortReports('times')" class="sort-btn px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition whitespace-nowrap" data-sort="times">Times Recited</button>
-            <button onclick="sortReports('quality')" class="sort-btn px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition whitespace-nowrap" data-sort="quality">Avg Quality</button>
-            <button onclick="sortReports('last')" class="sort-btn px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition whitespace-nowrap" data-sort="last">Last Recited</button>
+            <button onclick="sortReports('surah')" class="sort-btn px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition whitespace-nowrap" data-sort="surah">Surah #</button>
+            <button onclick="sortReports('times')" class="sort-btn px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition whitespace-nowrap" data-sort="times">Times Recited</button>
+            <button onclick="sortReports('quality')" class="sort-btn px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition whitespace-nowrap" data-sort="quality">Avg Quality</button>
+            <button onclick="sortReports('last')" class="sort-btn px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition whitespace-nowrap" data-sort="last">Last Recited</button>
           </div>
 
           <!-- Stats table -->
@@ -293,7 +314,7 @@
           <!-- Backup button -->
           <div class="mt-6">
             <button onclick="downloadBackup()"
-              class="w-full py-3 bg-white border-2 border-gray-200 text-gray-600 font-medium rounded-xl hover:bg-gray-50 transition flex items-center justify-center gap-2 active:scale-[0.98]">
+              class="w-full py-3 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition flex items-center justify-center gap-2 active:scale-[0.98]">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
               Download Backup (JSON)
             </button>
@@ -303,7 +324,7 @@
     </main>
 
     <!-- Bottom tab bar -->
-    <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-100 safe-bottom">
+    <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-700 safe-bottom">
       <div class="max-w-lg mx-auto flex">
         <button onclick="switchTab('home')" class="tab-btn active flex-1 flex flex-col items-center py-2.5 gap-0.5 transition" data-tab="home">
           <svg class="tab-icon w-6 h-6 text-gray-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
@@ -334,13 +355,13 @@
   <!-- Create Pool Modal -->
   <div id="modal-create-pool" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="modal-backdrop absolute inset-0" onclick="closeModal('modal-create-pool')"></div>
-    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm relative z-10">
-      <h3 class="text-lg font-bold text-gray-900 mb-4">Create New Pool</h3>
-      <div id="create-pool-error" class="hidden mb-3 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl"></div>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-sm relative z-10">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Create New Pool</h3>
+      <div id="create-pool-error" class="hidden mb-3 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm rounded-xl"></div>
       <input id="create-pool-name" type="text" placeholder="Pool name"
-        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50 mb-4">
+        class="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50 dark:bg-gray-700 dark:text-white mb-4">
       <div class="flex gap-3">
-        <button onclick="closeModal('modal-create-pool')" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition">Cancel</button>
+        <button onclick="closeModal('modal-create-pool')" class="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition">Cancel</button>
         <button onclick="createPool()" class="flex-1 py-2.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition">Create</button>
       </div>
     </div>
@@ -349,75 +370,75 @@
   <!-- Schedule Setup Modal -->
   <div id="modal-schedule" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center">
     <div class="modal-backdrop absolute inset-0" onclick="closeModal('modal-schedule')"></div>
-    <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl p-6 w-full max-w-sm relative z-10 max-h-[85vh] overflow-y-auto">
-      <h3 class="text-lg font-bold text-gray-900 mb-4">Generate Schedule</h3>
-      <div id="schedule-error" class="hidden mb-3 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl"></div>
+    <div class="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-xl p-6 w-full max-w-sm relative z-10 max-h-[85vh] overflow-y-auto">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Generate Schedule</h3>
+      <div id="schedule-error" class="hidden mb-3 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm rounded-xl"></div>
 
       <div class="space-y-4 mb-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1.5">Cycle Length (days per cycle)</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Cycle Length (days per cycle)</label>
           <input id="schedule-days" type="number" min="1" max="365" value="10"
             oninput="updateDailyEstimate()"
-            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50">
-          <p id="daily-estimate" class="mt-1.5 text-sm font-medium text-primary-700 bg-primary-50 rounded-lg px-3 py-1.5"></p>
+            class="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50 dark:bg-gray-700 dark:text-white">
+          <p id="daily-estimate" class="mt-1.5 text-sm font-medium text-primary-700 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 rounded-lg px-3 py-1.5"></p>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1.5">Total Range (days)</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Total Range (days)</label>
           <input id="schedule-range" type="number" min="1" max="365" value="10"
             oninput="updateDailyEstimate()"
-            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50">
-          <p class="mt-1 text-xs text-gray-500">If range > cycle, the pool repeats. E.g. cycle=6, range=10 → 1 full cycle + partial cycle</p>
+            class="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50 dark:bg-gray-700 dark:text-white">
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">If range > cycle, the pool repeats. E.g. cycle=6, range=10 → 1 full cycle + partial cycle</p>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1.5">Start Date</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Start Date</label>
           <input id="schedule-start" type="date"
-            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50">
+            class="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50 dark:bg-gray-700 dark:text-white">
         </div>
         <div class="flex items-center gap-3">
           <label class="relative inline-flex items-center cursor-pointer">
             <input id="schedule-shuffle" type="checkbox" class="sr-only peer">
-            <div class="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+            <div class="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:ring-2 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 dark:after:border-gray-500 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
-          <span class="text-sm font-medium text-gray-700">Shuffle surahs</span>
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Shuffle surahs</span>
         </div>
       </div>
 
       <div class="flex gap-3 mb-4">
-        <button onclick="previewSchedule()" class="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition">Preview</button>
+        <button onclick="previewSchedule()" class="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition">Preview</button>
         <button onclick="activateSchedule()" id="activate-btn" class="flex-1 py-2.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition">Activate</button>
       </div>
 
       <!-- Preview list -->
       <div id="schedule-preview" class="hidden">
-        <h4 class="text-sm font-semibold text-gray-700 mb-2">Preview</h4>
+        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Preview</h4>
         <div id="schedule-preview-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
       </div>
 
-      <button onclick="closeModal('modal-schedule')" class="w-full mt-3 py-2.5 text-gray-500 text-sm hover:text-gray-700 transition">Cancel</button>
+      <button onclick="closeModal('modal-schedule')" class="w-full mt-3 py-2.5 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-700 dark:hover:text-gray-200 transition">Cancel</button>
     </div>
   </div>
 
   <!-- Quality Slider Modal (Done) -->
   <div id="modal-done" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center">
     <div class="modal-backdrop absolute inset-0" onclick="closeModal('modal-done')"></div>
-    <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl p-6 w-full max-w-sm relative z-10">
-      <h3 class="text-lg font-bold text-gray-900 mb-1">Mark as Done</h3>
-      <p id="done-item-label" class="text-sm text-gray-500 mb-5"></p>
+    <div class="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-xl p-6 w-full max-w-sm relative z-10">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Mark as Done</h3>
+      <p id="done-item-label" class="text-sm text-gray-500 dark:text-gray-400 mb-5"></p>
 
       <div class="mb-6">
-        <label class="block text-sm font-medium text-gray-700 mb-3">Quality Rating</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Quality Rating</label>
         <div class="quality-gradient h-2 rounded-full mb-3"></div>
         <input id="done-quality" type="range" min="1" max="20" value="10"
           class="w-full" oninput="updateQualityLabel('done')">
         <div class="flex justify-between mt-1">
           <span class="text-xs text-red-500 font-medium">Weak (1)</span>
-          <span id="done-quality-value" class="text-sm font-bold text-primary-700">10</span>
+          <span id="done-quality-value" class="text-sm font-bold text-primary-700 dark:text-primary-400">10</span>
           <span class="text-xs text-green-600 font-medium">Perfect (20)</span>
         </div>
       </div>
 
       <div class="flex gap-3">
-        <button onclick="closeModal('modal-done')" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition">Cancel</button>
+        <button onclick="closeModal('modal-done')" class="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition">Cancel</button>
         <button onclick="confirmDone()" class="flex-1 py-2.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition">Confirm</button>
       </div>
     </div>
@@ -426,33 +447,33 @@
   <!-- Partial Modal -->
   <div id="modal-partial" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center">
     <div class="modal-backdrop absolute inset-0" onclick="closeModal('modal-partial')"></div>
-    <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl p-6 w-full max-w-sm relative z-10">
-      <h3 class="text-lg font-bold text-gray-900 mb-1">Mark as Partial</h3>
-      <p id="partial-item-label" class="text-sm text-gray-500 mb-5"></p>
+    <div class="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-xl p-6 w-full max-w-sm relative z-10">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Mark as Partial</h3>
+      <p id="partial-item-label" class="text-sm text-gray-500 dark:text-gray-400 mb-5"></p>
 
-      <div id="partial-error" class="hidden mb-3 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl"></div>
+      <div id="partial-error" class="hidden mb-3 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm rounded-xl"></div>
 
       <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700 mb-1.5">Stopped at page</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Stopped at page</label>
         <input id="partial-page" type="number" step="0.5"
-          class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50">
+          class="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50 dark:bg-gray-700 dark:text-white">
         <p id="partial-page-hint" class="text-xs text-gray-400 mt-1"></p>
       </div>
 
       <div class="mb-6">
-        <label class="block text-sm font-medium text-gray-700 mb-3">Quality Rating</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Quality Rating</label>
         <div class="quality-gradient h-2 rounded-full mb-3"></div>
         <input id="partial-quality" type="range" min="1" max="20" value="10"
           class="w-full" oninput="updateQualityLabel('partial')">
         <div class="flex justify-between mt-1">
           <span class="text-xs text-red-500 font-medium">Weak (1)</span>
-          <span id="partial-quality-value" class="text-sm font-bold text-primary-700">10</span>
+          <span id="partial-quality-value" class="text-sm font-bold text-primary-700 dark:text-primary-400">10</span>
           <span class="text-xs text-green-600 font-medium">Perfect (20)</span>
         </div>
       </div>
 
       <div class="flex gap-3">
-        <button onclick="closeModal('modal-partial')" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition">Cancel</button>
+        <button onclick="closeModal('modal-partial')" class="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition">Cancel</button>
         <button onclick="confirmPartial()" class="flex-1 py-2.5 bg-gold-500 text-white rounded-xl font-medium hover:bg-gold-600 transition">Confirm</button>
       </div>
     </div>
@@ -461,11 +482,11 @@
   <!-- Delete Pool Confirmation -->
   <div id="modal-delete-pool" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="modal-backdrop absolute inset-0" onclick="closeModal('modal-delete-pool')"></div>
-    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm relative z-10">
-      <h3 class="text-lg font-bold text-gray-900 mb-2">Delete Pool?</h3>
-      <p class="text-sm text-gray-500 mb-4">This will remove the pool and all its surah assignments. This cannot be undone.</p>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-sm relative z-10">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Delete Pool?</h3>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">This will remove the pool and all its surah assignments. This cannot be undone.</p>
       <div class="flex gap-3">
-        <button onclick="closeModal('modal-delete-pool')" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition">Cancel</button>
+        <button onclick="closeModal('modal-delete-pool')" class="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition">Cancel</button>
         <button onclick="confirmDeletePool()" class="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition">Delete</button>
       </div>
     </div>
@@ -620,6 +641,36 @@
     currentPartialItem: null,
     deletePoolId: null,
   };
+
+  // ============================================================
+  // THEME
+  // ============================================================
+  function updateThemeIcon() {
+    const isDark = document.documentElement.classList.contains('dark');
+    const sun = document.getElementById('theme-icon-sun');
+    const moon = document.getElementById('theme-icon-moon');
+    if (sun && moon) {
+      sun.classList.toggle('hidden', !isDark);   // show sun in dark mode (to switch to light)
+      moon.classList.toggle('hidden', isDark);    // show moon in light mode (to switch to dark)
+    }
+  }
+
+  function toggleTheme() {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    updateThemeIcon();
+  }
+
+  // Listen for OS preference changes
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    if (!localStorage.getItem('theme')) {
+      document.documentElement.classList.toggle('dark', e.matches);
+      updateThemeIcon();
+    }
+  });
+
+  // Set initial icon state
+  updateThemeIcon();
 
   // ============================================================
   // API HELPERS
@@ -782,18 +833,18 @@
           for (const u of data.upcoming) {
             const fmt = new Date(u.start_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
             html += `
-              <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="px-4 py-3 bg-gradient-to-r from-primary-50 to-primary-100 border-b border-primary-100">
-                  <h3 class="font-semibold text-primary-800">${escHtml(u.pool_name)}</h3>
-                  <p class="text-xs text-primary-600">Starts ${fmt}</p>
+              <div class="mt-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                <div class="px-4 py-3 bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/30 dark:to-primary-800/20 border-b border-primary-100 dark:border-primary-800">
+                  <h3 class="font-semibold text-primary-800 dark:text-primary-300">${escHtml(u.pool_name)}</h3>
+                  <p class="text-xs text-primary-600 dark:text-primary-400">Starts ${fmt}</p>
                 </div>
-                <div class="divide-y divide-gray-50">
+                <div class="divide-y divide-gray-50 dark:divide-gray-700">
                   ${u.items.map(item => {
                     const pages = Math.round(item.pages * 10) / 10;
                     return `
                       <div class="px-4 py-2.5 flex items-center justify-between">
                         <div>
-                          <span class="text-sm font-medium text-gray-700">${escHtml(item.surah_name)}</span>
+                          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">${escHtml(item.surah_name)}</span>
                           <span class="font-arabic text-sm text-gray-400 ml-1" dir="rtl">${escHtml(item.arabic)}</span>
                           <p class="text-[10px] text-gray-400">Pages ${item.start_page}–${item.end_page} (${pages} pg)</p>
                         </div>
@@ -818,28 +869,28 @@
       // Grand total pages across all pools
       const grandTotal = Math.round(data.pools.reduce((sum, p) => sum + p.items.reduce((s, it) => s + it.pages, 0), 0) * 10) / 10;
       const summaryEl = document.createElement('div');
-      summaryEl.className = 'bg-primary-50 rounded-xl p-3 border border-primary-100 mb-4 text-center';
-      summaryEl.innerHTML = `<span class="text-sm font-semibold text-primary-700">${grandTotal} pages today</span>`;
+      summaryEl.className = 'bg-primary-50 dark:bg-primary-900/30 rounded-xl p-3 border border-primary-100 dark:border-primary-800 mb-4 text-center';
+      summaryEl.innerHTML = `<span class="text-sm font-semibold text-primary-700 dark:text-primary-400">${grandTotal} pages today</span>`;
       content.appendChild(summaryEl);
 
       for (const pool of data.pools) {
         const poolPages = Math.round(pool.items.reduce((s, it) => s + it.pages, 0) * 10) / 10;
         const poolCard = document.createElement('div');
-        poolCard.className = 'bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden';
+        poolCard.className = 'bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden';
 
         const header = document.createElement('div');
-        header.className = 'px-4 py-3 bg-gradient-to-r from-primary-50 to-primary-100 border-b border-primary-100';
+        header.className = 'px-4 py-3 bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/30 dark:to-primary-800/20 border-b border-primary-100 dark:border-primary-800';
         header.innerHTML = `
           <div class="flex items-center justify-between">
-            <h3 class="font-semibold text-primary-800">${escHtml(pool.pool_name)}</h3>
-            <span class="text-xs font-medium text-primary-600">${poolPages} pg</span>
+            <h3 class="font-semibold text-primary-800 dark:text-primary-300">${escHtml(pool.pool_name)}</h3>
+            <span class="text-xs font-medium text-primary-600 dark:text-primary-400">${poolPages} pg</span>
           </div>
-          <p class="text-xs text-primary-600">Day ${pool.day_number} of ${pool.total_days}</p>
+          <p class="text-xs text-primary-600 dark:text-primary-400">Day ${pool.day_number} of ${pool.total_days}</p>
         `;
         poolCard.appendChild(header);
 
         const list = document.createElement('div');
-        list.className = 'divide-y divide-gray-50';
+        list.className = 'divide-y divide-gray-50 dark:divide-gray-700';
 
         for (const item of pool.items) {
           const surah = getSurah(item.surah_number);
@@ -848,8 +899,8 @@
           itemEl.id = 'today-item-' + item.id;
 
           const pages = item.pages;
-          const statusClass = item.status === 'done' ? 'bg-green-50 border-green-200' :
-                              item.status === 'partial' ? 'bg-yellow-50 border-yellow-200' : '';
+          const statusClass = item.status === 'done' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' :
+                              item.status === 'partial' ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800' : '';
 
           itemEl.innerHTML = `
             <div class="flex items-start justify-between gap-3 ${statusClass ? 'rounded-lg p-2 border ' + statusClass : ''}">
@@ -1046,7 +1097,7 @@
       const btn = document.createElement('button');
       const isActive = pool.id === state.selectedPoolId;
       btn.className = `px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition flex items-center gap-2 ${
-        isActive ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        isActive ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
       }`;
       btn.innerHTML = `
         <span>${escHtml(pool.name)}</span>
@@ -1077,20 +1128,20 @@
 
       const el = document.createElement('div');
       el.className = `flex items-center gap-3 p-3 rounded-xl transition cursor-pointer ${
-        isInCurrent ? 'bg-primary-50 border border-primary-200' :
-        isInOther ? 'bg-gray-50 border border-gray-100 opacity-60' :
-        'bg-white border border-gray-100 hover:border-primary-200 hover:bg-primary-50/50'
+        isInCurrent ? 'bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-800' :
+        isInOther ? 'bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 opacity-60' :
+        'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:border-primary-200 dark:hover:border-primary-700 hover:bg-primary-50/50 dark:hover:bg-primary-900/20'
       }`;
 
       el.onclick = () => toggleSurahInPool(surah.number);
 
       el.innerHTML = `
-        <div class="w-8 h-8 rounded-full ${isInCurrent ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-500'} flex items-center justify-center text-xs font-bold shrink-0">
+        <div class="w-8 h-8 rounded-full ${isInCurrent ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'} flex items-center justify-center text-xs font-bold shrink-0">
           ${surah.number}
         </div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2">
-            <span class="text-sm font-medium text-gray-800 truncate">${escHtml(surah.name)}</span>
+            <span class="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">${escHtml(surah.name)}</span>
             <span class="font-arabic text-base text-gray-400" dir="rtl">${escHtml(surah.arabic)}</span>
           </div>
           <p class="text-xs text-gray-400">${surah.pages} pages</p>
@@ -1359,11 +1410,12 @@
           : '<span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">Completed</span>';
         const borderColor = isActive ? 'border-green-200' : 'border-blue-200';
 
-        card.className = `bg-white rounded-xl shadow-sm border ${borderColor} p-4`;
+        const darkBorder = isActive ? 'dark:border-green-800' : 'dark:border-blue-800';
+        card.className = `bg-white dark:bg-gray-800 rounded-xl shadow-sm border ${borderColor} ${darkBorder} p-4`;
         card.innerHTML = `
           <div class="flex items-start justify-between mb-2">
             <div>
-              <h3 class="font-semibold text-gray-800">${escHtml(sched.pool_name)}</h3>
+              <h3 class="font-semibold text-gray-800 dark:text-gray-200">${escHtml(sched.pool_name)}</h3>
               <p class="text-xs text-gray-400">${startFmt} — ${endFmt} (${sched.total_days} days)</p>
             </div>
             <div class="flex items-center gap-2">
@@ -1434,7 +1486,7 @@
 
     const allBtn = document.createElement('button');
     allBtn.className = `px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition ${
-      state.calPoolFilter === null ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+      state.calPoolFilter === null ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
     }`;
     allBtn.textContent = 'All Pools';
     allBtn.onclick = () => { state.calPoolFilter = null; renderCalPoolFilter(); renderCalendar(); };
@@ -1443,7 +1495,7 @@
     for (const pool of state.pools) {
       const btn = document.createElement('button');
       btn.className = `px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition ${
-        state.calPoolFilter === pool.id ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        state.calPoolFilter === pool.id ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
       }`;
       btn.textContent = pool.name;
       btn.onclick = () => { state.calPoolFilter = pool.id; renderCalPoolFilter(); renderCalendar(); };
@@ -1491,15 +1543,15 @@
       const isToday = dateStr === todayStr;
 
       const cell = document.createElement('div');
-      cell.className = `cal-day flex flex-col items-center justify-center rounded-lg p-1 cursor-pointer transition hover:bg-gray-50`;
+      cell.className = `cal-day flex flex-col items-center justify-center rounded-lg p-1 cursor-pointer transition hover:bg-gray-50 dark:hover:bg-gray-700`;
       if (isToday) {
         cell.dataset.today = '1';
         cell.style.boxShadow = '0 0 0 2px #10b981';
-        cell.style.backgroundColor = '#ecfdf5';
+        cell.style.backgroundColor = document.documentElement.classList.contains('dark') ? '#064e3b' : '#ecfdf5';
       }
 
       const dayNum = document.createElement('span');
-      dayNum.className = `text-sm ${isToday ? 'font-bold text-primary-700' : 'text-gray-700'}`;
+      dayNum.className = `text-sm ${isToday ? 'font-bold text-primary-700 dark:text-primary-400' : 'text-gray-700 dark:text-gray-300'}`;
       dayNum.textContent = d;
       cell.appendChild(dayNum);
 
@@ -1529,18 +1581,19 @@
       }
 
       cell.onclick = () => {
+        const dk = document.documentElement.classList.contains('dark');
         // Reset all cells
         grid.querySelectorAll('.cal-day').forEach(c => {
           c.style.boxShadow = '';
           c.style.backgroundColor = '';
           if (c.dataset.today) {
             c.style.boxShadow = '0 0 0 2px #10b981';
-            c.style.backgroundColor = '#ecfdf5';
+            c.style.backgroundColor = dk ? '#064e3b' : '#ecfdf5';
           }
         });
         // Highlight selected cell
         cell.style.boxShadow = '0 0 0 2px #34d399';
-        cell.style.backgroundColor = isToday ? '#ecfdf5' : '#eff6ff';
+        cell.style.backgroundColor = isToday ? (dk ? '#064e3b' : '#ecfdf5') : (dk ? '#1e3a5f' : '#eff6ff');
         showDayDetail(dateStr, items);
       };
       grid.appendChild(cell);
@@ -1574,7 +1627,7 @@
 
     if (items.length === 0) {
       detail.innerHTML = `
-        <h4 class="text-sm font-semibold text-gray-800 mb-2">${formattedDate}</h4>
+        <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">${formattedDate}</h4>
         <p class="text-sm text-gray-400">No assignments for this day</p>
       `;
       return;
@@ -1583,22 +1636,22 @@
     const totalPages = Math.round(items.reduce((s, it) => s + (it.end_page - it.start_page), 0) * 10) / 10;
 
     detail.innerHTML = `
-      <h4 class="text-sm font-semibold text-gray-800 mb-1">${formattedDate}</h4>
-      <p class="text-xs text-primary-600 mb-2">${totalPages} pages total</p>
+      <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">${formattedDate}</h4>
+      <p class="text-xs text-primary-600 dark:text-primary-400 mb-2">${totalPages} pages total</p>
       <div class="space-y-2">
         ${items.map(item => {
           const surah = getSurah(item.surah_number);
           const pages = Math.round((item.end_page - item.start_page) * 10) / 10;
           const statusBadge = item.status === 'done'
-            ? `<span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">Done ${item.quality ? item.quality + '/20' : ''}</span>`
+            ? `<span class="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full">Done ${item.quality ? item.quality + '/20' : ''}</span>`
             : item.status === 'partial'
-            ? `<span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full">Partial ${item.quality ? item.quality + '/20' : ''}</span>`
-            : `<span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full">Pending</span>`;
+            ? `<span class="px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-xs rounded-full">Partial ${item.quality ? item.quality + '/20' : ''}</span>`
+            : `<span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs rounded-full">Pending</span>`;
 
           return `
-            <div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+            <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
               <div>
-                <span class="text-xs font-medium text-gray-700">${escHtml(surah ? surah.name : 'Surah ' + item.surah_number)}</span>
+                <span class="text-xs font-medium text-gray-700 dark:text-gray-300">${escHtml(surah ? surah.name : 'Surah ' + item.surah_number)}</span>
                 <span class="font-arabic text-sm text-gray-400 ml-1" dir="rtl">${escHtml(surah ? surah.arabic : '')}</span>
                 <p class="text-[10px] text-gray-400">${pages} pg (p.${item.start_page}-${item.end_page}) | ${escHtml(item.pool_name || '')}</p>
               </div>
@@ -1681,12 +1734,12 @@
     for (const row of stats) {
       const surah = getSurah(row.surah_number);
       const el = document.createElement('div');
-      el.className = 'bg-white rounded-xl p-3 shadow-sm border border-gray-100';
+      el.className = 'bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700';
       el.innerHTML = `
         <div class="flex items-start justify-between">
           <div>
             <div class="flex items-center gap-2">
-              <span class="text-sm font-semibold text-gray-800">${row.surah_number}. ${escHtml(row.name)}</span>
+              <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">${row.surah_number}. ${escHtml(row.name)}</span>
               <span class="font-arabic text-base text-gray-400" dir="rtl">${escHtml(row.arabic)}</span>
             </div>
             <div class="flex items-center gap-3 mt-1">
