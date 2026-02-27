@@ -778,12 +778,31 @@
         // Show upcoming schedule info
         const upcomingEl = document.getElementById('today-upcoming');
         if (data.upcoming && data.upcoming.length > 0) {
-          const first = data.upcoming[0];
-          const startFmt = new Date(first.start_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-          let html = `<p class="text-sm text-primary-600 font-medium mt-3">Upcoming</p>`;
+          let html = '';
           for (const u of data.upcoming) {
-            const fmt = new Date(u.start_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-            html += `<p class="text-xs text-gray-500 mt-1">${escHtml(u.pool_name)} starts ${fmt}</p>`;
+            const fmt = new Date(u.start_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+            html += `
+              <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="px-4 py-3 bg-gradient-to-r from-primary-50 to-primary-100 border-b border-primary-100">
+                  <h3 class="font-semibold text-primary-800">${escHtml(u.pool_name)}</h3>
+                  <p class="text-xs text-primary-600">Starts ${fmt}</p>
+                </div>
+                <div class="divide-y divide-gray-50">
+                  ${u.items.map(item => {
+                    const pages = Math.round(item.pages * 10) / 10;
+                    return `
+                      <div class="px-4 py-2.5 flex items-center justify-between">
+                        <div>
+                          <span class="text-sm font-medium text-gray-700">${escHtml(item.surah_name)}</span>
+                          <span class="font-arabic text-sm text-gray-400 ml-1" dir="rtl">${escHtml(item.arabic)}</span>
+                          <p class="text-[10px] text-gray-400">Pages ${item.start_page}–${item.end_page} (${pages} pg)</p>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            `;
           }
           upcomingEl.innerHTML = html;
           upcomingEl.classList.remove('hidden');

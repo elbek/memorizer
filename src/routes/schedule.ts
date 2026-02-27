@@ -405,7 +405,18 @@ export async function todayHandler(c: Context<Env>) {
     }>;
   }> = [];
 
-  const upcoming: Array<{ pool_name: string; start_date: string }> = [];
+  const upcoming: Array<{
+    pool_name: string;
+    start_date: string;
+    items: Array<{
+      surah_number: number;
+      surah_name: string;
+      arabic: string;
+      start_page: number;
+      end_page: number;
+      pages: number;
+    }>;
+  }> = [];
 
   for (const pool of poolsResult.results) {
     // Find active schedule for this pool
@@ -431,11 +442,28 @@ export async function todayHandler(c: Context<Env>) {
     const dayNumber = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
 
     if (dayNumber < 1 || dayNumber > sched.total_days) {
-      // Track upcoming schedules (starts in the future)
+      // Track upcoming schedules (starts in the future) with day-1 items
       if (dayNumber < 1) {
+        const upcomingItems = await c.env.DB.prepare(
+          "SELECT surah_number, start_page, end_page FROM schedule_items WHERE schedule_id = ? AND day_number = 1 ORDER BY id"
+        )
+          .bind(sched.id)
+          .all<{ surah_number: number; start_page: number; end_page: number }>();
+
         upcoming.push({
           pool_name: pool.name,
           start_date: sched.start_date,
+          items: upcomingItems.results.map((it) => {
+            const surah = SURAHS.find((s) => s.number === it.surah_number);
+            return {
+              surah_number: it.surah_number,
+              surah_name: surah?.name ?? "",
+              arabic: surah?.arabic ?? "",
+              start_page: it.start_page,
+              end_page: it.end_page,
+              pages: it.end_page - it.start_page,
+            };
+          }),
         });
       }
       continue;
