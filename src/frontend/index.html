@@ -2482,17 +2482,20 @@
 
   function toggleFullRead() {
     const shell = document.getElementById('app-shell');
-    const entering = !shell.classList.contains('full-read-mode');
     shell.classList.toggle('full-read-mode');
-    if (entering) {
-      // Tap quran container to exit full-read mode
-      const handler = (e) => {
-        if (e.target.closest('#quran-page-lines')) {
-          shell.classList.remove('full-read-mode');
-          document.getElementById('quran-page-container').removeEventListener('click', handler);
-        }
-      };
-      document.getElementById('quran-page-container').addEventListener('click', handler);
+    let btn = document.getElementById('exit-fullread-btn');
+    if (shell.classList.contains('full-read-mode')) {
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'exit-fullread-btn';
+        btn.className = 'fixed top-3 right-3 z-50 w-9 h-9 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-sm';
+        btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+        btn.onclick = toggleFullRead;
+        document.body.appendChild(btn);
+      }
+      btn.style.display = 'flex';
+    } else if (btn) {
+      btn.style.display = 'none';
     }
   }
 
