@@ -73,7 +73,21 @@ pools.delete("/:poolId", async (c) => {
     return c.json({ error: "Cannot delete system pool" }, 400);
   }
 
-  await c.env.DB.prepare("DELETE FROM pools WHERE id = ?").bind(poolId).run();
+  // Clean up related data before deleting the pool
+  // Get schedules for this pool to delete their items
+  const schedules = await c.env.DB.prepare(
+    "SELECT id FROM schedules WHERE pool_id = ?"
+  ).bind(poolId).all<{ id: number }>();
+
+  const stmts: D1PreparedStatement[] = [];
+  for (const sched of schedules.results) {
+    stmts.push(c.env.DB.prepare("DELETE FROM schedule_items WHERE schedule_id = ?").bind(sched.id));
+  }
+  stmts.push(c.env.DB.prepare("DELETE FROM schedules WHERE pool_id = ?").bind(poolId));
+  stmts.push(c.env.DB.prepare("DELETE FROM surah_pool WHERE pool_id = ?").bind(poolId));
+  stmts.push(c.env.DB.prepare("DELETE FROM pools WHERE id = ?").bind(poolId));
+
+  await c.env.DB.batch(stmts);
 
   return c.json({ ok: true });
 });

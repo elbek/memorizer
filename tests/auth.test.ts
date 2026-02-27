@@ -169,10 +169,10 @@ describe("Auth - Register", () => {
       .bind(user!.id)
       .all<{ name: string; is_system: number }>();
 
-    expect(pools.results).toHaveLength(2);
+    expect(pools.results).toHaveLength(3);
 
     const poolNames = pools.results.map((p) => p.name).sort();
-    expect(poolNames).toEqual(["Manzil", "Sabak"]);
+    expect(poolNames).toEqual(["Daily", "Manzil", "Sabak"]);
 
     // Both should be system pools
     for (const pool of pools.results) {

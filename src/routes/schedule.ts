@@ -57,6 +57,60 @@ function addDays(dateStr: string, days: number): string {
 }
 
 /**
+ * Build a cycling schedule: one cycle = total_days, repeat to fill total_range_days.
+ * If total_range_days > total_days, the cycle repeats (last cycle may be partial).
+ */
+function buildCyclingSchedule(
+  surahs: { number: number; pages: number }[],
+  cycleDays: number,
+  totalRangeDays: number,
+  shuffle: boolean,
+  startDate: string
+) {
+  const allDays: Array<{
+    day_number: number;
+    date: string;
+    cycle: number;
+    chunks: Array<{
+      surah_number: number;
+      surah_name: string;
+      start_page: number;
+      end_page: number;
+      pages: number;
+    }>;
+  }> = [];
+
+  let dayOffset = 0;
+  let cycle = 1;
+  while (dayOffset < totalRangeDays) {
+    const remainingDays = totalRangeDays - dayOffset;
+    const daysThisCycle = Math.min(cycleDays, remainingDays);
+    const dayChunks = generateSchedule(surahs, daysThisCycle, { shuffle });
+
+    for (let i = 0; i < dayChunks.length; i++) {
+      allDays.push({
+        day_number: dayOffset + i + 1,
+        date: addDays(startDate, dayOffset + i),
+        cycle,
+        chunks: dayChunks[i].map((chunk) => {
+          const surah = SURAHS.find((s) => s.number === chunk.surahNumber);
+          return {
+            surah_number: chunk.surahNumber,
+            surah_name: surah?.name ?? "",
+            start_page: chunk.startPage,
+            end_page: chunk.endPage,
+            pages: chunk.endPage - chunk.startPage,
+          };
+        }),
+      });
+    }
+    dayOffset += daysThisCycle;
+    cycle++;
+  }
+  return allDays;
+}
+
+/**
  * POST /generate — Preview schedule (does NOT save to DB)
  */
 schedule.post("/generate", async (c) => {
@@ -64,9 +118,12 @@ schedule.post("/generate", async (c) => {
   const body = await c.req.json<{
     pool_id?: number;
     total_days?: number;
+    total_range_days?: number;
     start_date?: string;
+    shuffle?: boolean;
   }>();
-  const { pool_id, total_days, start_date } = body;
+  const { pool_id, total_days, start_date, shuffle } = body;
+  const total_range_days = body.total_range_days || total_days;
 
   if (!pool_id || !total_days || !start_date) {
     return c.json({ error: "pool_id, total_days, and start_date are required" }, 400);
@@ -82,39 +139,28 @@ schedule.post("/generate", async (c) => {
     return c.json({ error: "Pool has no surahs" }, 400);
   }
 
-  const dayChunks = generateSchedule(surahs, total_days);
   const totalPages = surahs.reduce((sum, s) => sum + s.pages, 0);
   const pagesPerDay = totalPages / total_days;
+  const days = buildCyclingSchedule(surahs, total_days!, total_range_days!, !!shuffle, start_date);
 
-  const days = dayChunks.map((chunks, i) => ({
-    day_number: i + 1,
-    date: addDays(start_date, i),
-    chunks: chunks.map((chunk) => {
-      const surah = SURAHS.find((s) => s.number === chunk.surahNumber);
-      return {
-        surah_number: chunk.surahNumber,
-        surah_name: surah?.name ?? "",
-        start_page: chunk.startPage,
-        end_page: chunk.endPage,
-        pages: chunk.endPage - chunk.startPage,
-      };
-    }),
-  }));
-
-  return c.json({ days, total_pages: totalPages, pages_per_day: pagesPerDay });
+  return c.json({ days, total_pages: totalPages, pages_per_day: pagesPerDay, cycles: Math.ceil(total_range_days! / total_days!) });
 });
 
 /**
  * POST /activate — Save schedule to DB
+ * Cancels old schedule and DELETES its pending items (replace, not append).
  */
 schedule.post("/activate", async (c) => {
   const userId = c.get("userId");
   const body = await c.req.json<{
     pool_id?: number;
     total_days?: number;
+    total_range_days?: number;
     start_date?: string;
+    shuffle?: boolean;
   }>();
-  const { pool_id, total_days, start_date } = body;
+  const { pool_id, total_days, start_date, shuffle } = body;
+  const total_range_days = body.total_range_days || total_days;
 
   if (!pool_id || !total_days || !start_date) {
     return c.json({ error: "pool_id, total_days, and start_date are required" }, 400);
@@ -130,34 +176,42 @@ schedule.post("/activate", async (c) => {
     return c.json({ error: "Pool has no surahs" }, 400);
   }
 
-  // Cancel any existing active schedule for this pool
-  await c.env.DB.prepare(
-    "UPDATE schedules SET status = 'cancelled' WHERE pool_id = ? AND status = 'active'"
-  )
-    .bind(pool_id)
-    .run();
+  // Cancel old active schedule and delete its pending items (clean replace)
+  const oldSchedule = await c.env.DB.prepare(
+    "SELECT id FROM schedules WHERE pool_id = ? AND status = 'active'"
+  ).bind(pool_id).first<{ id: number }>();
 
-  // Generate the schedule
-  const dayChunks = generateSchedule(surahs, total_days);
+  if (oldSchedule) {
+    await c.env.DB.batch([
+      c.env.DB.prepare(
+        "DELETE FROM schedule_items WHERE schedule_id = ? AND status = 'pending'"
+      ).bind(oldSchedule.id),
+      c.env.DB.prepare(
+        "UPDATE schedules SET status = 'cancelled' WHERE id = ?"
+      ).bind(oldSchedule.id),
+    ]);
+  }
+
+  // Generate the cycling schedule
+  const days = buildCyclingSchedule(surahs, total_days!, total_range_days!, !!shuffle, start_date);
 
   // Insert the schedule
   const scheduleResult = await c.env.DB.prepare(
     "INSERT INTO schedules (pool_id, start_date, total_days) VALUES (?, ?, ?)"
   )
-    .bind(pool_id, start_date, total_days)
+    .bind(pool_id, start_date, total_range_days)
     .run();
 
   const scheduleId = scheduleResult.meta.last_row_id as number;
 
   // Insert all schedule_items
   const stmts = [];
-  for (let dayIndex = 0; dayIndex < dayChunks.length; dayIndex++) {
-    const dayNumber = dayIndex + 1;
-    for (const chunk of dayChunks[dayIndex]) {
+  for (const day of days) {
+    for (const chunk of day.chunks) {
       stmts.push(
         c.env.DB.prepare(
           "INSERT INTO schedule_items (schedule_id, day_number, surah_number, start_page, end_page) VALUES (?, ?, ?, ?, ?)"
-        ).bind(scheduleId, dayNumber, chunk.surahNumber, chunk.startPage, chunk.endPage)
+        ).bind(scheduleId, day.day_number, chunk.surah_number, chunk.start_page, chunk.end_page)
       );
     }
   }

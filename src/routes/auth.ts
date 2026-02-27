@@ -39,7 +39,7 @@ auth.post("/register", async (c) => {
 
     const userId = result.meta.last_row_id as number;
 
-    // Auto-create system pools: Sabak and Manzil
+    // Auto-create system pools: Sabak, Manzil, and Daily
     await c.env.DB.batch([
       c.env.DB.prepare(
         "INSERT INTO pools (user_id, name, is_system) VALUES (?, ?, 1)"
@@ -47,6 +47,9 @@ auth.post("/register", async (c) => {
       c.env.DB.prepare(
         "INSERT INTO pools (user_id, name, is_system) VALUES (?, ?, 1)"
       ).bind(userId, "Manzil"),
+      c.env.DB.prepare(
+        "INSERT INTO pools (user_id, name, is_system) VALUES (?, ?, 1)"
+      ).bind(userId, "Daily"),
     ]);
 
     // Create JWT and set cookie

@@ -336,16 +336,30 @@
 
       <div class="space-y-4 mb-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1.5">Number of Days</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Cycle Length (days per cycle)</label>
           <input id="schedule-days" type="number" min="1" max="365" value="10"
             oninput="updateDailyEstimate()"
             class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50">
           <p id="daily-estimate" class="mt-1.5 text-sm font-medium text-primary-700 bg-primary-50 rounded-lg px-3 py-1.5"></p>
         </div>
         <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Total Range (days)</label>
+          <input id="schedule-range" type="number" min="1" max="365" value="10"
+            oninput="updateDailyEstimate()"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50">
+          <p class="mt-1 text-xs text-gray-500">If range > cycle, the pool repeats. E.g. cycle=6, range=10 → 1 full cycle + partial cycle</p>
+        </div>
+        <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Start Date</label>
           <input id="schedule-start" type="date"
             class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50">
+        </div>
+        <div class="flex items-center gap-3">
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input id="schedule-shuffle" type="checkbox" class="sr-only peer">
+            <div class="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+          </label>
+          <span class="text-sm font-medium text-gray-700">Shuffle surahs</span>
         </div>
       </div>
 
@@ -1139,6 +1153,8 @@
     tomorrow.setDate(tomorrow.getDate() + 1);
     document.getElementById('schedule-start').value = formatDate(tomorrow);
     document.getElementById('schedule-days').value = '10';
+    document.getElementById('schedule-range').value = '10';
+    document.getElementById('schedule-shuffle').checked = false;
     document.getElementById('schedule-error').classList.add('hidden');
     document.getElementById('schedule-preview').classList.add('hidden');
     updateDailyEstimate();
@@ -1147,12 +1163,14 @@
 
   async function previewSchedule() {
     const days = parseInt(document.getElementById('schedule-days').value);
+    const rangeDays = parseInt(document.getElementById('schedule-range').value) || days;
     const startDate = document.getElementById('schedule-start').value;
+    const shuffle = document.getElementById('schedule-shuffle').checked;
     const errEl = document.getElementById('schedule-error');
     errEl.classList.add('hidden');
 
     if (!days || days < 1) {
-      errEl.textContent = 'Enter a valid number of days.';
+      errEl.textContent = 'Enter a valid cycle length.';
       errEl.classList.remove('hidden');
       return;
     }
@@ -1166,7 +1184,9 @@
       const data = await api('POST', '/api/schedule/generate', {
         pool_id: state.selectedPoolId,
         total_days: days,
+        total_range_days: rangeDays,
         start_date: startDate,
+        shuffle,
       });
 
       const previewEl = document.getElementById('schedule-preview');
@@ -1204,12 +1224,14 @@
 
   async function activateSchedule() {
     const days = parseInt(document.getElementById('schedule-days').value);
+    const rangeDays = parseInt(document.getElementById('schedule-range').value) || days;
     const startDate = document.getElementById('schedule-start').value;
+    const shuffle = document.getElementById('schedule-shuffle').checked;
     const errEl = document.getElementById('schedule-error');
     errEl.classList.add('hidden');
 
     if (!days || days < 1 || !startDate) {
-      errEl.textContent = 'Enter valid days and start date.';
+      errEl.textContent = 'Enter valid cycle length and start date.';
       errEl.classList.remove('hidden');
       return;
     }
@@ -1218,7 +1240,9 @@
       await api('POST', '/api/schedule/activate', {
         pool_id: state.selectedPoolId,
         total_days: days,
+        total_range_days: rangeDays,
         start_date: startDate,
+        shuffle,
       });
       closeModal('modal-schedule');
       switchTab('home');
@@ -1321,6 +1345,7 @@
       cell.className = `cal-day flex flex-col items-center justify-center rounded-lg p-1 cursor-pointer transition ${
         isToday ? 'ring-2 ring-primary-500 bg-primary-50' : 'hover:bg-gray-50'
       }`;
+      if (isToday) cell.dataset.today = '1';
 
       const dayNum = document.createElement('span');
       dayNum.className = `text-sm ${isToday ? 'font-bold text-primary-700' : 'text-gray-700'}`;
@@ -1352,7 +1377,19 @@
         cell.appendChild(badge);
       }
 
-      cell.onclick = () => showDayDetail(dateStr, items);
+      cell.onclick = () => {
+        // Reset all cells to default style
+        grid.querySelectorAll('.cal-day').forEach(c => {
+          c.classList.remove('ring-2', 'ring-primary-400', 'ring-primary-500', 'bg-primary-50', 'bg-blue-50');
+          if (c.dataset.today) {
+            c.classList.add('ring-2', 'ring-primary-500', 'bg-primary-50');
+          }
+        });
+        // Highlight selected cell
+        cell.classList.add('ring-2', 'ring-primary-400', 'bg-blue-50');
+        if (!isToday) cell.classList.remove('bg-primary-50');
+        showDayDetail(dateStr, items);
+      };
       grid.appendChild(cell);
     }
   }
@@ -1376,21 +1413,29 @@
 
   function showDayDetail(dateStr, items) {
     const detail = document.getElementById('cal-day-detail');
-    if (items.length === 0) {
-      detail.classList.add('hidden');
-      return;
-    }
     detail.classList.remove('hidden');
 
     const formattedDate = new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', {
       weekday: 'long', month: 'long', day: 'numeric'
     });
 
+    if (items.length === 0) {
+      detail.innerHTML = `
+        <h4 class="text-sm font-semibold text-gray-800 mb-2">${formattedDate}</h4>
+        <p class="text-sm text-gray-400">No assignments for this day</p>
+      `;
+      return;
+    }
+
+    const totalPages = Math.round(items.reduce((s, it) => s + (it.end_page - it.start_page), 0) * 10) / 10;
+
     detail.innerHTML = `
-      <h4 class="text-sm font-semibold text-gray-800 mb-2">${formattedDate}</h4>
+      <h4 class="text-sm font-semibold text-gray-800 mb-1">${formattedDate}</h4>
+      <p class="text-xs text-primary-600 mb-2">${totalPages} pages total</p>
       <div class="space-y-2">
         ${items.map(item => {
           const surah = getSurah(item.surah_number);
+          const pages = Math.round((item.end_page - item.start_page) * 10) / 10;
           const statusBadge = item.status === 'done'
             ? `<span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">Done ${item.quality ? item.quality + '/20' : ''}</span>`
             : item.status === 'partial'
@@ -1402,7 +1447,7 @@
               <div>
                 <span class="text-xs font-medium text-gray-700">${escHtml(surah ? surah.name : 'Surah ' + item.surah_number)}</span>
                 <span class="font-arabic text-sm text-gray-400 ml-1" dir="rtl">${escHtml(surah ? surah.arabic : '')}</span>
-                <p class="text-[10px] text-gray-400">Pages ${item.start_page}-${item.end_page} | ${escHtml(item.pool_name || '')}</p>
+                <p class="text-[10px] text-gray-400">${pages} pg (p.${item.start_page}-${item.end_page}) | ${escHtml(item.pool_name || '')}</p>
               </div>
               ${statusBadge}
             </div>

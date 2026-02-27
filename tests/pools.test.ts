@@ -124,11 +124,12 @@ describe("Pool Management API", () => {
         created_at: string;
       }[];
     };
-    expect(body.pools).toHaveLength(2);
+    expect(body.pools).toHaveLength(3);
 
     const names = body.pools.map((p) => p.name);
     expect(names).toContain("Sabak");
     expect(names).toContain("Manzil");
+    expect(names).toContain("Daily");
 
     for (const pool of body.pools) {
       expect(pool.is_system).toBe(1);
@@ -282,7 +283,7 @@ describe("Pool Management API", () => {
     expect(surahsBody.surahs[0].surah_number).toBe(1);
     expect(surahsBody.surahs[0].name).toBe("Al-Fatihah");
     expect(surahsBody.surahs[0].arabic).toBeTruthy();
-    expect(surahsBody.surahs[0].pages).toBe(0.5);
+    expect(surahsBody.surahs[0].pages).toBe(1);
     expect(surahsBody.surahs[0].added_at).toBeTruthy();
   });
 

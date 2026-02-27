@@ -27,11 +27,25 @@ function roundToHalf(value: number): number {
  * 5. Last day gets everything remaining
  * 6. If there are more days than pages, some days will be empty
  */
+/**
+ * Fisher-Yates shuffle (returns new array, does not mutate input)
+ */
+function shuffleArray<T>(arr: T[]): T[] {
+  const result = [...arr];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 export function generateSchedule(
   surahs: SurahInput[],
-  totalDays: number
+  totalDays: number,
+  options?: { shuffle?: boolean }
 ): ScheduleChunk[][] {
-  const totalPages = surahs.reduce((sum, s) => sum + s.pages, 0);
+  const orderedSurahs = options?.shuffle ? shuffleArray(surahs) : surahs;
+  const totalPages = orderedSurahs.reduce((sum, s) => sum + s.pages, 0);
   const targetPerDay = totalPages / totalDays;
 
   // Initialize days array
@@ -43,7 +57,7 @@ export function generateSchedule(
   let currentDay = 0;
   let currentDayPages = 0;
 
-  for (const surah of surahs) {
+  for (const surah of orderedSurahs) {
     let surahRemaining = surah.pages;
     let surahOffset = 0; // how far into this surah we've scheduled
 
