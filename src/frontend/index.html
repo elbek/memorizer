@@ -162,8 +162,9 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
-            <h3 class="text-lg font-semibold text-gray-700">No assignments today</h3>
+            <h3 class="text-lg font-semibold text-gray-700">Nothing scheduled for today</h3>
             <p class="text-gray-400 mt-1 text-sm">Set up a schedule in the Pools tab to get started.</p>
+            <div id="today-upcoming" class="hidden mt-2"></div>
           </div>
         </div>
       </div>
@@ -199,6 +200,20 @@
               class="px-4 py-2 bg-gold-500 text-white text-sm font-semibold rounded-xl hover:bg-gold-600 transition shadow-sm active:scale-[0.98]">
               Generate Schedule
             </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screen: Schedules -->
+      <div id="screen-schedules" class="screen fade-in">
+        <div class="py-4">
+          <h2 class="text-xl font-bold text-gray-900 mb-4">Schedules</h2>
+          <div id="schedules-loading" class="text-center py-12">
+            <div class="inline-block w-8 h-8 border-3 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+          </div>
+          <div id="schedules-list" class="hidden space-y-3"></div>
+          <div id="schedules-empty" class="hidden text-center py-12">
+            <p class="text-gray-400 text-sm">No schedules yet. Create one from the Pools tab.</p>
           </div>
         </div>
       </div>
@@ -297,6 +312,10 @@
         <button onclick="switchTab('pools')" class="tab-btn flex-1 flex flex-col items-center py-2.5 gap-0.5 transition" data-tab="pools">
           <svg class="tab-icon w-6 h-6 text-gray-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
           <span class="text-[10px] font-medium text-gray-400 transition">Pools</span>
+        </button>
+        <button onclick="switchTab('schedules')" class="tab-btn flex-1 flex flex-col items-center py-2.5 gap-0.5 transition" data-tab="schedules">
+          <svg class="tab-icon w-6 h-6 text-gray-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01m-.01 4h.01"/></svg>
+          <span class="text-[10px] font-medium text-gray-400 transition">Schedules</span>
         </button>
         <button onclick="switchTab('calendar')" class="tab-btn flex-1 flex flex-col items-center py-2.5 gap-0.5 transition" data-tab="calendar">
           <svg class="tab-icon w-6 h-6 text-gray-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -710,6 +729,7 @@
     // Load data for tab
     if (tab === 'home') loadToday();
     if (tab === 'pools') loadPools();
+    if (tab === 'schedules') loadSchedules();
     if (tab === 'calendar') loadCalendar();
     if (tab === 'reports') loadReports();
   }
@@ -719,7 +739,7 @@
     document.getElementById('app-shell').classList.add('active');
     document.getElementById('user-greeting').textContent = state.user;
     const hash = location.hash.replace('#', '');
-    const validTabs = ['home', 'pools', 'calendar', 'reports'];
+    const validTabs = ['home', 'pools', 'schedules', 'calendar', 'reports'];
     switchTab(validTabs.includes(hash) ? hash : 'home');
   }
 
@@ -755,6 +775,21 @@
 
       if (!data.pools || data.pools.length === 0) {
         empty.classList.remove('hidden');
+        // Show upcoming schedule info
+        const upcomingEl = document.getElementById('today-upcoming');
+        if (data.upcoming && data.upcoming.length > 0) {
+          const first = data.upcoming[0];
+          const startFmt = new Date(first.start_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+          let html = `<p class="text-sm text-primary-600 font-medium mt-3">Upcoming</p>`;
+          for (const u of data.upcoming) {
+            const fmt = new Date(u.start_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            html += `<p class="text-xs text-gray-500 mt-1">${escHtml(u.pool_name)} starts ${fmt}</p>`;
+          }
+          upcomingEl.innerHTML = html;
+          upcomingEl.classList.remove('hidden');
+        } else {
+          upcomingEl.classList.add('hidden');
+        }
         return;
       }
 
@@ -1252,6 +1287,95 @@
     } catch (e) {
       errEl.textContent = e.message;
       errEl.classList.remove('hidden');
+    }
+  }
+
+  // ============================================================
+  // SCHEDULES
+  // ============================================================
+  async function loadSchedules() {
+    const loading = document.getElementById('schedules-loading');
+    const list = document.getElementById('schedules-list');
+    const empty = document.getElementById('schedules-empty');
+
+    loading.classList.remove('hidden');
+    list.classList.add('hidden');
+    empty.classList.add('hidden');
+
+    try {
+      const data = await api('GET', '/api/schedule/list');
+      loading.classList.add('hidden');
+
+      if (!data.schedules || data.schedules.length === 0) {
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      list.classList.remove('hidden');
+      list.innerHTML = '';
+
+      for (const sched of data.schedules) {
+        const card = document.createElement('div');
+        const isActive = sched.status === 'active';
+        const isCompleted = sched.status === 'completed';
+        const isCancelled = sched.status === 'cancelled';
+
+        const startFmt = new Date(sched.start_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const endFmt = new Date(sched.end_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+        const progress = sched.items_total > 0 ? Math.round((sched.items_done / sched.items_total) * 100) : 0;
+
+        let statusBadge = '';
+        let borderColor = 'border-gray-100';
+        if (isActive) {
+          statusBadge = '<span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">Active</span>';
+          borderColor = 'border-green-200';
+        } else if (isCompleted) {
+          statusBadge = '<span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">Completed</span>';
+          borderColor = 'border-blue-200';
+        } else {
+          statusBadge = '<span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full font-medium">Cancelled</span>';
+        }
+
+        card.className = `bg-white rounded-xl shadow-sm border ${borderColor} p-4`;
+        card.innerHTML = `
+          <div class="flex items-start justify-between mb-2">
+            <div>
+              <h3 class="font-semibold text-gray-800">${escHtml(sched.pool_name)}</h3>
+              <p class="text-xs text-gray-400">${startFmt} — ${endFmt} (${sched.total_days} days)</p>
+            </div>
+            <div class="flex items-center gap-2">
+              ${statusBadge}
+              ${!isCompleted ? `<button onclick="deleteSchedule(${sched.id})" class="p-1.5 text-gray-300 hover:text-red-500 transition rounded-lg hover:bg-red-50" title="Delete schedule">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>` : ''}
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div class="h-full rounded-full ${isActive ? 'bg-green-500' : isCompleted ? 'bg-blue-500' : 'bg-gray-300'}" style="width: ${progress}%"></div>
+            </div>
+            <span class="text-xs text-gray-500 shrink-0">${sched.items_done}/${sched.items_total} done</span>
+          </div>
+          ${sched.items_partial > 0 ? `<p class="text-[10px] text-yellow-600 mt-1">${sched.items_partial} partial</p>` : ''}
+        `;
+        list.appendChild(card);
+      }
+    } catch (e) {
+      loading.classList.add('hidden');
+      if (e.message.includes('401') || e.message.includes('Unauthorized')) {
+        handleLogout();
+      }
+    }
+  }
+
+  async function deleteSchedule(scheduleId) {
+    if (!confirm('Delete this schedule and all its items?')) return;
+    try {
+      await api('DELETE', `/api/schedule/${scheduleId}/delete`);
+      loadSchedules();
+    } catch (e) {
+      alert(e.message || 'Failed to delete schedule');
     }
   }
 

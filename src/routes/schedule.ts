@@ -281,6 +281,91 @@ schedule.get("/:poolId", async (c) => {
 });
 
 /**
+ * GET /list — List all schedules for the user (active, cancelled, completed)
+ */
+schedule.get("/list", async (c) => {
+  const userId = c.get("userId");
+
+  const result = await c.env.DB.prepare(
+    `SELECT s.id, s.pool_id, s.start_date, s.total_days, s.status, s.created_at, p.name as pool_name
+     FROM schedules s
+     JOIN pools p ON p.id = s.pool_id
+     WHERE p.user_id = ?
+     ORDER BY s.created_at DESC`
+  )
+    .bind(userId)
+    .all<{
+      id: number;
+      pool_id: number;
+      start_date: string;
+      total_days: number;
+      status: string;
+      created_at: string;
+      pool_name: string;
+    }>();
+
+  // For each schedule, get completion stats
+  const schedules = [];
+  for (const sched of result.results) {
+    const stats = await c.env.DB.prepare(
+      `SELECT
+         COUNT(*) as total,
+         SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done,
+         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+         SUM(CASE WHEN status = 'partial' THEN 1 ELSE 0 END) as partial
+       FROM schedule_items WHERE schedule_id = ?`
+    )
+      .bind(sched.id)
+      .first<{ total: number; done: number; pending: number; partial: number }>();
+
+    const endDate = addDays(sched.start_date, sched.total_days - 1);
+
+    schedules.push({
+      ...sched,
+      end_date: endDate,
+      items_total: stats?.total ?? 0,
+      items_done: stats?.done ?? 0,
+      items_pending: stats?.pending ?? 0,
+      items_partial: stats?.partial ?? 0,
+    });
+  }
+
+  return c.json({ schedules });
+});
+
+/**
+ * DELETE /:scheduleId/delete — Delete a schedule (only if not completed)
+ */
+schedule.delete("/:scheduleId/delete", async (c) => {
+  const userId = c.get("userId");
+  const scheduleId = Number(c.req.param("scheduleId"));
+
+  // Verify schedule belongs to user via pool ownership
+  const sched = await c.env.DB.prepare(
+    `SELECT s.id, s.status FROM schedules s
+     JOIN pools p ON p.id = s.pool_id
+     WHERE s.id = ? AND p.user_id = ?`
+  )
+    .bind(scheduleId, userId)
+    .first<{ id: number; status: string }>();
+
+  if (!sched) {
+    return c.json({ error: "Schedule not found" }, 404);
+  }
+
+  if (sched.status === "completed") {
+    return c.json({ error: "Cannot delete a completed schedule" }, 400);
+  }
+
+  await c.env.DB.batch([
+    c.env.DB.prepare("DELETE FROM schedule_items WHERE schedule_id = ?").bind(scheduleId),
+    c.env.DB.prepare("DELETE FROM schedules WHERE id = ?").bind(scheduleId),
+  ]);
+
+  return c.json({ ok: true });
+});
+
+/**
  * Today handler — Get today's assignments across ALL pools.
  * Exported separately so it can be mounted at /api/today.
  */
@@ -320,6 +405,8 @@ export async function todayHandler(c: Context<Env>) {
     }>;
   }> = [];
 
+  const upcoming: Array<{ pool_name: string; start_date: string }> = [];
+
   for (const pool of poolsResult.results) {
     // Find active schedule for this pool
     const sched = await c.env.DB.prepare(
@@ -343,7 +430,16 @@ export async function todayHandler(c: Context<Env>) {
     const diffMs = todayDate.getTime() - startDate.getTime();
     const dayNumber = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
 
-    if (dayNumber < 1 || dayNumber > sched.total_days) continue;
+    if (dayNumber < 1 || dayNumber > sched.total_days) {
+      // Track upcoming schedules (starts in the future)
+      if (dayNumber < 1) {
+        upcoming.push({
+          pool_name: pool.name,
+          start_date: sched.start_date,
+        });
+      }
+      continue;
+    }
 
     // Fetch schedule items for this day
     const itemsResult = await c.env.DB.prepare(
@@ -386,5 +482,8 @@ export async function todayHandler(c: Context<Env>) {
     });
   }
 
-  return c.json({ pools });
+  // Sort upcoming by start date (earliest first)
+  upcoming.sort((a, b) => a.start_date.localeCompare(b.start_date));
+
+  return c.json({ pools, upcoming });
 }
