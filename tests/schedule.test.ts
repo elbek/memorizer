@@ -275,13 +275,13 @@ describe("Schedule API", () => {
 
     expect(secondScheduleId).not.toBe(firstScheduleId);
 
-    // First schedule should be cancelled
+    // First schedule should be deleted
     const firstSched = await env.DB.prepare(
-      "SELECT status FROM schedules WHERE id = ?"
+      "SELECT id FROM schedules WHERE id = ?"
     )
       .bind(firstScheduleId)
-      .first<{ status: string }>();
-    expect(firstSched!.status).toBe("cancelled");
+      .first<{ id: number }>();
+    expect(firstSched).toBeNull();
 
     // Second schedule should be active
     const secondSched = await env.DB.prepare(

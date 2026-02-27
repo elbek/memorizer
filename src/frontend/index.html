@@ -1318,24 +1318,16 @@
         const card = document.createElement('div');
         const isActive = sched.status === 'active';
         const isCompleted = sched.status === 'completed';
-        const isCancelled = sched.status === 'cancelled';
 
         const startFmt = new Date(sched.start_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         const endFmt = new Date(sched.end_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
         const progress = sched.items_total > 0 ? Math.round((sched.items_done / sched.items_total) * 100) : 0;
 
-        let statusBadge = '';
-        let borderColor = 'border-gray-100';
-        if (isActive) {
-          statusBadge = '<span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">Active</span>';
-          borderColor = 'border-green-200';
-        } else if (isCompleted) {
-          statusBadge = '<span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">Completed</span>';
-          borderColor = 'border-blue-200';
-        } else {
-          statusBadge = '<span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full font-medium">Cancelled</span>';
-        }
+        const statusBadge = isActive
+          ? '<span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">Active</span>'
+          : '<span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">Completed</span>';
+        const borderColor = isActive ? 'border-green-200' : 'border-blue-200';
 
         card.className = `bg-white rounded-xl shadow-sm border ${borderColor} p-4`;
         card.innerHTML = `
@@ -1353,7 +1345,7 @@
           </div>
           <div class="flex items-center gap-3">
             <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div class="h-full rounded-full ${isActive ? 'bg-green-500' : isCompleted ? 'bg-blue-500' : 'bg-gray-300'}" style="width: ${progress}%"></div>
+              <div class="h-full rounded-full ${isActive ? 'bg-green-500' : 'bg-blue-500'}" style="width: ${progress}%"></div>
             </div>
             <span class="text-xs text-gray-500 shrink-0">${sched.items_done}/${sched.items_total} done</span>
           </div>

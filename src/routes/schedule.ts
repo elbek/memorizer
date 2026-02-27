@@ -184,10 +184,10 @@ schedule.post("/activate", async (c) => {
   if (oldSchedule) {
     await c.env.DB.batch([
       c.env.DB.prepare(
-        "DELETE FROM schedule_items WHERE schedule_id = ? AND status = 'pending'"
+        "DELETE FROM schedule_items WHERE schedule_id = ?"
       ).bind(oldSchedule.id),
       c.env.DB.prepare(
-        "UPDATE schedules SET status = 'cancelled' WHERE id = ?"
+        "DELETE FROM schedules WHERE id = ?"
       ).bind(oldSchedule.id),
     ]);
   }
@@ -224,7 +224,7 @@ schedule.post("/activate", async (c) => {
 });
 
 /**
- * GET /list — List all schedules for the user (active, cancelled, completed)
+ * GET /list — List all schedules for the user (active, completed)
  */
 schedule.get("/list", async (c) => {
   const userId = c.get("userId");
