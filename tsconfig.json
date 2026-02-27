@@ -9,8 +9,7 @@
     "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers"],
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
-    "outDir": "dist",
-    "rootDir": "src"
+    "noEmit": true
   },
   "include": ["src/**/*", "tests/**/*"]
 }

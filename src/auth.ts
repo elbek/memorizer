@@ -119,7 +119,7 @@ export async function authMiddleware(c: Context<Env>, next: Next) {
 
 function base64urlEncode(str: string): string {
   const bytes = new TextEncoder().encode(str);
-  return base64urlEncodeBuffer(bytes.buffer);
+  return base64urlEncodeBuffer(bytes.buffer as ArrayBuffer);
 }
 
 function base64urlEncodeBuffer(buffer: ArrayBuffer): string {
