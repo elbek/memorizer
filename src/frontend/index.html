@@ -167,7 +167,7 @@
     .full-read-mode nav { display: none !important; }
     .full-read-mode main { padding: 0 !important; max-width: none !important; margin: 0 !important; }
     .full-read-mode #screen-quran > div { padding: 0 !important; }
-    .full-read-mode #screen-quran .flex.items-center { display: none !important; }
+    .full-read-mode #quran-nav-bar { display: none !important; }
     .full-read-mode #quran-page-info { display: none !important; }
     .full-read-mode #quran-page-container { border-radius: 0; border: none; min-height: 100dvh; max-width: none; padding: 8px; margin: 0; }
 
@@ -517,7 +517,7 @@
       <div id="screen-quran" class="screen fade-in">
         <div class="py-4">
           <!-- Header with page navigation -->
-          <div class="flex items-center justify-between mb-4">
+          <div id="quran-nav-bar" class="flex items-center justify-between mb-4">
             <button onclick="prevQuranPage()" id="quran-prev-btn"
               class="px-3 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
