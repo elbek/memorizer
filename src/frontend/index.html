@@ -815,14 +815,25 @@
       content.classList.remove('hidden');
       content.innerHTML = '';
 
+      // Grand total pages across all pools
+      const grandTotal = Math.round(data.pools.reduce((sum, p) => sum + p.items.reduce((s, it) => s + it.pages, 0), 0) * 10) / 10;
+      const summaryEl = document.createElement('div');
+      summaryEl.className = 'bg-primary-50 rounded-xl p-3 border border-primary-100 mb-4 text-center';
+      summaryEl.innerHTML = `<span class="text-sm font-semibold text-primary-700">${grandTotal} pages today</span>`;
+      content.appendChild(summaryEl);
+
       for (const pool of data.pools) {
+        const poolPages = Math.round(pool.items.reduce((s, it) => s + it.pages, 0) * 10) / 10;
         const poolCard = document.createElement('div');
         poolCard.className = 'bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden';
 
         const header = document.createElement('div');
         header.className = 'px-4 py-3 bg-gradient-to-r from-primary-50 to-primary-100 border-b border-primary-100';
         header.innerHTML = `
-          <h3 class="font-semibold text-primary-800">${escHtml(pool.pool_name)}</h3>
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-primary-800">${escHtml(pool.pool_name)}</h3>
+            <span class="text-xs font-medium text-primary-600">${poolPages} pg</span>
+          </div>
           <p class="text-xs text-primary-600">Day ${pool.day_number} of ${pool.total_days}</p>
         `;
         poolCard.appendChild(header);
