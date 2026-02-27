@@ -689,6 +689,7 @@
   // ============================================================
   function switchTab(tab) {
     state.currentTab = tab;
+    location.hash = tab;
     // Update tab buttons
     document.querySelectorAll('.tab-btn').forEach(btn => {
       const isActive = btn.dataset.tab === tab;
@@ -717,7 +718,9 @@
     document.getElementById('login-screen').classList.remove('active');
     document.getElementById('app-shell').classList.add('active');
     document.getElementById('user-greeting').textContent = state.user;
-    switchTab('home');
+    const hash = location.hash.replace('#', '');
+    const validTabs = ['home', 'pools', 'calendar', 'reports'];
+    switchTab(validTabs.includes(hash) ? hash : 'home');
   }
 
   // ============================================================
