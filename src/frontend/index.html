@@ -162,14 +162,14 @@
       border-color: #374151;
       background: #111827;
     }
-    /* Full reading mode */
+    /* Full reading mode — hide chrome, fill viewport */
     .full-read-mode header,
-    .full-read-mode nav,
-    .full-read-mode #screen-quran > div > .flex,
-    .full-read-mode #screen-quran > div > #quran-page-info { display: none !important; }
-    .full-read-mode main { padding: 0 !important; max-width: none !important; }
+    .full-read-mode nav { display: none !important; }
+    .full-read-mode main { padding: 0 !important; max-width: none !important; margin: 0 !important; }
     .full-read-mode #screen-quran > div { padding: 0 !important; }
-    .full-read-mode #quran-page-container { border-radius: 0; border: none; min-height: 100vh; max-width: none; padding: 12px 8px 0; margin: 0; }
+    .full-read-mode #screen-quran .flex.items-center { display: none !important; }
+    .full-read-mode #quran-page-info { display: none !important; }
+    .full-read-mode #quran-page-container { border-radius: 0; border: none; min-height: 100dvh; max-width: none; padding: 8px; margin: 0; }
 
     /* Surah header ornamental frame */
     .surah-header-wrapper {
