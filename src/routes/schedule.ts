@@ -224,6 +224,59 @@ schedule.post("/activate", async (c) => {
 });
 
 /**
+ * GET /list — List all schedules for the user (active, cancelled, completed)
+ */
+schedule.get("/list", async (c) => {
+  const userId = c.get("userId");
+
+  const result = await c.env.DB.prepare(
+    `SELECT s.id, s.pool_id, s.start_date, s.total_days, s.status, s.created_at, p.name as pool_name
+     FROM schedules s
+     JOIN pools p ON p.id = s.pool_id
+     WHERE p.user_id = ?
+     ORDER BY s.created_at DESC`
+  )
+    .bind(userId)
+    .all<{
+      id: number;
+      pool_id: number;
+      start_date: string;
+      total_days: number;
+      status: string;
+      created_at: string;
+      pool_name: string;
+    }>();
+
+  // For each schedule, get completion stats
+  const schedules = [];
+  for (const sched of result.results) {
+    const stats = await c.env.DB.prepare(
+      `SELECT
+         COUNT(*) as total,
+         SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done,
+         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+         SUM(CASE WHEN status = 'partial' THEN 1 ELSE 0 END) as partial
+       FROM schedule_items WHERE schedule_id = ?`
+    )
+      .bind(sched.id)
+      .first<{ total: number; done: number; pending: number; partial: number }>();
+
+    const endDate = addDays(sched.start_date, sched.total_days - 1);
+
+    schedules.push({
+      ...sched,
+      end_date: endDate,
+      items_total: stats?.total ?? 0,
+      items_done: stats?.done ?? 0,
+      items_pending: stats?.pending ?? 0,
+      items_partial: stats?.partial ?? 0,
+    });
+  }
+
+  return c.json({ schedules });
+});
+
+/**
  * GET /:poolId — Get current active schedule for a pool
  */
 schedule.get("/:poolId", async (c) => {
@@ -278,59 +331,6 @@ schedule.get("/:poolId", async (c) => {
   });
 
   return c.json({ schedule: sched, items });
-});
-
-/**
- * GET /list — List all schedules for the user (active, cancelled, completed)
- */
-schedule.get("/list", async (c) => {
-  const userId = c.get("userId");
-
-  const result = await c.env.DB.prepare(
-    `SELECT s.id, s.pool_id, s.start_date, s.total_days, s.status, s.created_at, p.name as pool_name
-     FROM schedules s
-     JOIN pools p ON p.id = s.pool_id
-     WHERE p.user_id = ?
-     ORDER BY s.created_at DESC`
-  )
-    .bind(userId)
-    .all<{
-      id: number;
-      pool_id: number;
-      start_date: string;
-      total_days: number;
-      status: string;
-      created_at: string;
-      pool_name: string;
-    }>();
-
-  // For each schedule, get completion stats
-  const schedules = [];
-  for (const sched of result.results) {
-    const stats = await c.env.DB.prepare(
-      `SELECT
-         COUNT(*) as total,
-         SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done,
-         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-         SUM(CASE WHEN status = 'partial' THEN 1 ELSE 0 END) as partial
-       FROM schedule_items WHERE schedule_id = ?`
-    )
-      .bind(sched.id)
-      .first<{ total: number; done: number; pending: number; partial: number }>();
-
-    const endDate = addDays(sched.start_date, sched.total_days - 1);
-
-    schedules.push({
-      ...sched,
-      end_date: endDate,
-      items_total: stats?.total ?? 0,
-      items_done: stats?.done ?? 0,
-      items_pending: stats?.pending ?? 0,
-      items_partial: stats?.partial ?? 0,
-    });
-  }
-
-  return c.json({ schedules });
 });
 
 /**
