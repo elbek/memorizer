@@ -7,9 +7,10 @@ beforeAll(async () => {
   await env.DB.batch([
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT UNIQUE NOT NULL,
-      pin_hash TEXT NOT NULL,
-      pin_salt TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      password_salt TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now'))
     )`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS pools (
@@ -33,6 +34,7 @@ beforeAll(async () => {
       pool_id INTEGER NOT NULL,
       start_date TEXT NOT NULL,
       total_days INTEGER NOT NULL,
+      cycle_days INTEGER,
       status TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed', 'cancelled')),
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (pool_id) REFERENCES pools(id)
@@ -89,7 +91,7 @@ describe("Auth - Register", () => {
     const res = await SELF.fetch("http://localhost/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "testuser", pin: "12345" }),
+      body: JSON.stringify({ email: "test@example.com", name: "testuser", password: "password1" }),
     });
 
     expect(res.status).toBe(200);
@@ -104,48 +106,57 @@ describe("Auth - Register", () => {
     expect(setCookie).toContain("HttpOnly");
   });
 
-  it("rejects duplicate name with 409", async () => {
+  it("rejects duplicate email with 409", async () => {
     // Register first user
     await SELF.fetch("http://localhost/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "duplicate", pin: "11111" }),
+      body: JSON.stringify({ email: "dup@example.com", name: "duplicate", password: "password1" }),
     });
 
-    // Try to register same name again
+    // Try to register same email again
     const res = await SELF.fetch("http://localhost/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "duplicate", pin: "22222" }),
+      body: JSON.stringify({ email: "dup@example.com", name: "duplicate2", password: "password2" }),
     });
 
     expect(res.status).toBe(409);
   });
 
-  it("rejects invalid PIN (non-5-digit) with 400", async () => {
+  it("rejects invalid password with 400", async () => {
     // Too short
     const res1 = await SELF.fetch("http://localhost/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "badpin1", pin: "123" }),
+      body: JSON.stringify({ email: "bad1@example.com", name: "badpass1", password: "short1" }),
     });
     expect(res1.status).toBe(400);
 
-    // Too long
+    // No number
     const res2 = await SELF.fetch("http://localhost/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "badpin2", pin: "123456" }),
+      body: JSON.stringify({ email: "bad2@example.com", name: "badpass2", password: "nodigits" }),
     });
     expect(res2.status).toBe(400);
 
-    // Non-numeric
+    // No letter
     const res3 = await SELF.fetch("http://localhost/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "badpin3", pin: "abcde" }),
+      body: JSON.stringify({ email: "bad3@example.com", name: "badpass3", password: "12345678" }),
     });
     expect(res3.status).toBe(400);
+  });
+
+  it("rejects invalid email with 400", async () => {
+    const res = await SELF.fetch("http://localhost/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "notanemail", name: "bademail", password: "password1" }),
+    });
+    expect(res.status).toBe(400);
   });
 
   it("creates system pools (Sabak and Manzil) on registration", async () => {
@@ -153,12 +164,12 @@ describe("Auth - Register", () => {
     await SELF.fetch("http://localhost/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "pooluser", pin: "99999" }),
+      body: JSON.stringify({ email: "pooluser@example.com", name: "pooluser", password: "password1" }),
     });
 
     // Query the DB directly to verify pools were created
-    const user = await env.DB.prepare("SELECT id FROM users WHERE name = ?")
-      .bind("pooluser")
+    const user = await env.DB.prepare("SELECT id FROM users WHERE email = ?")
+      .bind("pooluser@example.com")
       .first<{ id: number }>();
 
     expect(user).toBeTruthy();
@@ -174,7 +185,7 @@ describe("Auth - Register", () => {
     const poolNames = pools.results.map((p) => p.name).sort();
     expect(poolNames).toEqual(["Daily", "Manzil", "Sabak"]);
 
-    // Both should be system pools
+    // All should be system pools
     for (const pool of pools.results) {
       expect(pool.is_system).toBe(1);
     }
@@ -187,7 +198,7 @@ describe("Auth - Login", () => {
     await SELF.fetch("http://localhost/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "loginuser", pin: "54321" }),
+      body: JSON.stringify({ email: "login@example.com", name: "loginuser", password: "password1" }),
     });
   });
 
@@ -195,7 +206,7 @@ describe("Auth - Login", () => {
     const res = await SELF.fetch("http://localhost/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "loginuser", pin: "54321" }),
+      body: JSON.stringify({ email: "login@example.com", password: "password1" }),
     });
 
     expect(res.status).toBe(200);
@@ -208,11 +219,11 @@ describe("Auth - Login", () => {
     expect(setCookie).toContain("token=");
   });
 
-  it("rejects wrong PIN with 401", async () => {
+  it("rejects wrong password with 401", async () => {
     const res = await SELF.fetch("http://localhost/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "loginuser", pin: "00000" }),
+      body: JSON.stringify({ email: "login@example.com", password: "wrongpass1" }),
     });
 
     expect(res.status).toBe(401);

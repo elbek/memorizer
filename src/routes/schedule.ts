@@ -197,9 +197,9 @@ schedule.post("/activate", async (c) => {
 
   // Insert the schedule
   const scheduleResult = await c.env.DB.prepare(
-    "INSERT INTO schedules (pool_id, start_date, total_days) VALUES (?, ?, ?)"
+    "INSERT INTO schedules (pool_id, start_date, total_days, cycle_days) VALUES (?, ?, ?, ?)"
   )
-    .bind(pool_id, start_date, total_range_days)
+    .bind(pool_id, start_date, total_range_days, total_days)
     .run();
 
   const scheduleId = scheduleResult.meta.last_row_id as number;
@@ -230,7 +230,7 @@ schedule.get("/list", async (c) => {
   const userId = c.get("userId");
 
   const result = await c.env.DB.prepare(
-    `SELECT s.id, s.pool_id, s.start_date, s.total_days, s.status, s.created_at, p.name as pool_name
+    `SELECT s.id, s.pool_id, s.start_date, s.total_days, s.cycle_days, s.status, s.created_at, p.name as pool_name
      FROM schedules s
      JOIN pools p ON p.id = s.pool_id
      WHERE p.user_id = ?
@@ -242,6 +242,7 @@ schedule.get("/list", async (c) => {
       pool_id: number;
       start_date: string;
       total_days: number;
+      cycle_days: number | null;
       status: string;
       created_at: string;
       pool_name: string;

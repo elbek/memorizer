@@ -1,8 +1,9 @@
 export interface User {
   id: number;
+  email: string;
   name: string;
-  pin_hash: string;
-  pin_salt: string;
+  password_hash: string;
+  password_salt: string;
   created_at: string;
 }
 
@@ -26,6 +27,7 @@ export interface Schedule {
   pool_id: number;
   start_date: string;
   total_days: number;
+  cycle_days: number | null;
   status: "active" | "completed" | "cancelled";
   created_at: string;
 }

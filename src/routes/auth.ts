@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { setCookie } from "hono/cookie";
-import { hashPin, generateSalt, createToken } from "../auth";
+import { hashPassword, generateSalt, createToken } from "../auth";
 
 type Bindings = { DB: D1Database; JWT_SECRET: string };
 type Variables = { userId: number };
@@ -9,32 +9,37 @@ export const auth = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 /**
  * POST /register
- * Body: { name: string, pin: string }
- * Creates user, auto-creates Sabak and Manzil pools, returns JWT cookie.
+ * Body: { email: string, name: string, password: string }
+ * Creates user, auto-creates Sabak, Manzil, and Daily pools, returns JWT cookie.
  */
 auth.post("/register", async (c) => {
-  const body = await c.req.json<{ name?: string; pin?: string }>();
-  const { name, pin } = body;
+  const body = await c.req.json<{ email?: string; name?: string; password?: string }>();
+  const { email, name, password } = body;
+
+  // Validate email
+  if (!email || !email.includes("@") || !email.includes(".")) {
+    return c.json({ error: "Valid email is required" }, 400);
+  }
 
   // Validate name
   if (!name || name.trim().length === 0) {
     return c.json({ error: "Name is required" }, 400);
   }
 
-  // Validate pin: must be exactly 5 digits
-  if (!pin || !/^\d{5}$/.test(pin)) {
-    return c.json({ error: "PIN must be exactly 5 digits" }, 400);
+  // Validate password: minimum 8 chars, at least 1 letter and 1 number
+  if (!password || password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+    return c.json({ error: "Password must be at least 8 characters with at least 1 letter and 1 number" }, 400);
   }
 
   const salt = generateSalt();
-  const pinHash = await hashPin(pin, salt);
+  const passwordHash = await hashPassword(password, salt);
 
   try {
     // Insert user
     const result = await c.env.DB.prepare(
-      "INSERT INTO users (name, pin_hash, pin_salt) VALUES (?, ?, ?)"
+      "INSERT INTO users (email, name, password_hash, password_salt) VALUES (?, ?, ?, ?)"
     )
-      .bind(name.trim(), pinHash, salt)
+      .bind(email.trim().toLowerCase(), name.trim(), passwordHash, salt)
       .run();
 
     const userId = result.meta.last_row_id as number;
@@ -64,12 +69,12 @@ auth.post("/register", async (c) => {
 
     return c.json({ ok: true, name: name.trim() });
   } catch (err: unknown) {
-    // Handle UNIQUE constraint violation (duplicate name)
+    // Handle UNIQUE constraint violation (duplicate email)
     if (
       err instanceof Error &&
       err.message.includes("UNIQUE constraint failed")
     ) {
-      return c.json({ error: "Name already taken" }, 409);
+      return c.json({ error: "Email already registered" }, 409);
     }
     throw err;
   }
@@ -77,31 +82,31 @@ auth.post("/register", async (c) => {
 
 /**
  * POST /login
- * Body: { name: string, pin: string }
+ * Body: { email: string, password: string }
  * Verifies credentials, returns JWT cookie.
  */
 auth.post("/login", async (c) => {
-  const body = await c.req.json<{ name?: string; pin?: string }>();
-  const { name, pin } = body;
+  const body = await c.req.json<{ email?: string; password?: string }>();
+  const { email, password } = body;
 
-  if (!name || !pin) {
-    return c.json({ error: "Name and PIN are required" }, 400);
+  if (!email || !password) {
+    return c.json({ error: "Email and password are required" }, 400);
   }
 
-  // Look up user by name
+  // Look up user by email
   const user = await c.env.DB.prepare(
-    "SELECT id, name, pin_hash, pin_salt FROM users WHERE name = ?"
+    "SELECT id, name, password_hash, password_salt FROM users WHERE email = ?"
   )
-    .bind(name.trim())
-    .first<{ id: number; name: string; pin_hash: string; pin_salt: string }>();
+    .bind(email.trim().toLowerCase())
+    .first<{ id: number; name: string; password_hash: string; password_salt: string }>();
 
   if (!user) {
     return c.json({ error: "Invalid credentials" }, 401);
   }
 
-  // Hash provided pin with stored salt and compare
-  const hashedPin = await hashPin(pin, user.pin_salt);
-  if (hashedPin !== user.pin_hash) {
+  // Hash provided password with stored salt and compare
+  const hashedPassword = await hashPassword(password, user.password_salt);
+  if (hashedPassword !== user.password_hash) {
     return c.json({ error: "Invalid credentials" }, 401);
   }
 

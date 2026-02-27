@@ -5,13 +5,12 @@ let cookie: string;
 let poolId: number;
 
 async function registerAndGetCookie(
-  name: string,
-  pin: string
+  name: string
 ): Promise<string> {
   const res = await SELF.fetch("http://localhost/api/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, pin }),
+    body: JSON.stringify({ email: `${name}@test.com`, name, password: "testpass1" }),
   });
   const setCookie = res.headers.get("set-cookie")!;
   return setCookie.split(";")[0]; // "token=xxx"
@@ -22,9 +21,10 @@ beforeAll(async () => {
   await env.DB.batch([
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT UNIQUE NOT NULL,
-      pin_hash TEXT NOT NULL,
-      pin_salt TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      password_salt TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now'))
     )`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS pools (
@@ -48,6 +48,7 @@ beforeAll(async () => {
       pool_id INTEGER NOT NULL,
       start_date TEXT NOT NULL,
       total_days INTEGER NOT NULL,
+      cycle_days INTEGER,
       status TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed', 'cancelled')),
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (pool_id) REFERENCES pools(id)
@@ -110,7 +111,7 @@ beforeAll(async () => {
   ).run();
 
   // Register user and get auth cookie
-  cookie = await registerAndGetCookie("scheduleuser", "12345");
+  cookie = await registerAndGetCookie("scheduleuser");
 
   // Get the Sabak pool
   const listRes = await SELF.fetch("http://localhost/api/pools", {
@@ -422,7 +423,7 @@ describe("Schedule API", () => {
 
   it("GET /today returns empty when no active schedules", async () => {
     // Register a fresh user with no schedules
-    const freshCookie = await registerAndGetCookie("noscheduser", "12345");
+    const freshCookie = await registerAndGetCookie("noscheduser");
 
     const res = await SELF.fetch("http://localhost/api/today", {
       headers: { Cookie: freshCookie },

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { SURAHS } from "../data/surahs";
+import { SURAHS, getSurahsByJuz } from "../data/surahs";
 
 type Bindings = { DB: D1Database; JWT_SECRET: string };
 type Variables = { userId: number };
@@ -207,6 +207,64 @@ pools.delete("/:poolId/surahs/:surahNumber", async (c) => {
     .run();
 
   return c.json({ ok: true });
+});
+
+/**
+ * POST /:poolId/juz — Add all surahs from a juz to a pool
+ * Body: { juz_number: number } (1-30)
+ * Skips surahs already in another pool (partial success).
+ */
+pools.post("/:poolId/juz", async (c) => {
+  const userId = c.get("userId");
+  const poolId = Number(c.req.param("poolId"));
+  const body = await c.req.json<{ juz_number?: number }>();
+  const { juz_number } = body;
+
+  if (!juz_number || juz_number < 1 || juz_number > 30) {
+    return c.json({ error: "Invalid juz number (must be 1-30)" }, 400);
+  }
+
+  // Verify pool belongs to user
+  const pool = await c.env.DB.prepare(
+    "SELECT id FROM pools WHERE id = ? AND user_id = ?"
+  )
+    .bind(poolId, userId)
+    .first<{ id: number }>();
+
+  if (!pool) {
+    return c.json({ error: "Pool not found" }, 404);
+  }
+
+  const surahs = getSurahsByJuz(juz_number);
+  let added = 0;
+  const skippedSurahs: string[] = [];
+
+  for (const surah of surahs) {
+    try {
+      await c.env.DB.prepare(
+        "INSERT INTO surah_pool (pool_id, surah_number) VALUES (?, ?)"
+      )
+        .bind(poolId, surah.number)
+        .run();
+      added++;
+    } catch (err: unknown) {
+      if (
+        err instanceof Error &&
+        err.message.includes("Surah already in another pool")
+      ) {
+        skippedSurahs.push(surah.name);
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  return c.json({
+    ok: true,
+    added,
+    skipped: skippedSurahs.length,
+    skipped_surahs: skippedSurahs,
+  });
 });
 
 /**

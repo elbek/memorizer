@@ -2,13 +2,12 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { env, SELF } from "cloudflare:test";
 
 async function registerAndGetCookie(
-  name: string,
-  pin: string
+  name: string
 ): Promise<string> {
   const res = await SELF.fetch("http://localhost/api/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, pin }),
+    body: JSON.stringify({ email: `${name}@test.com`, name, password: "testpass1" }),
   });
   const cookie = res.headers.get("set-cookie")!;
   return cookie.split(";")[0]; // "token=xxx"
@@ -19,9 +18,10 @@ beforeAll(async () => {
   await env.DB.batch([
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT UNIQUE NOT NULL,
-      pin_hash TEXT NOT NULL,
-      pin_salt TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      password_salt TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now'))
     )`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS pools (
@@ -45,6 +45,7 @@ beforeAll(async () => {
       pool_id INTEGER NOT NULL,
       start_date TEXT NOT NULL,
       total_days INTEGER NOT NULL,
+      cycle_days INTEGER,
       status TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed', 'cancelled')),
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (pool_id) REFERENCES pools(id)
@@ -109,7 +110,7 @@ beforeAll(async () => {
 
 describe("Pool Management API", () => {
   it("lists pools returns Sabak and Manzil (auto-created on registration)", async () => {
-    const cookie = await registerAndGetCookie("listpools", "12345");
+    const cookie = await registerAndGetCookie("listpools");
 
     const res = await SELF.fetch("http://localhost/api/pools", {
       headers: { Cookie: cookie },
@@ -137,7 +138,7 @@ describe("Pool Management API", () => {
   });
 
   it("creates a custom pool successfully", async () => {
-    const cookie = await registerAndGetCookie("createpool", "12345");
+    const cookie = await registerAndGetCookie("createpool");
 
     const res = await SELF.fetch("http://localhost/api/pools", {
       method: "POST",
@@ -152,7 +153,7 @@ describe("Pool Management API", () => {
   });
 
   it("rejects duplicate pool name with 409", async () => {
-    const cookie = await registerAndGetCookie("duppool", "12345");
+    const cookie = await registerAndGetCookie("duppool");
 
     // Create pool first time
     await SELF.fetch("http://localhost/api/pools", {
@@ -172,7 +173,7 @@ describe("Pool Management API", () => {
   });
 
   it("cannot delete system pool (400)", async () => {
-    const cookie = await registerAndGetCookie("delsyspool", "12345");
+    const cookie = await registerAndGetCookie("delsyspool");
 
     // Get pools to find a system pool
     const listRes = await SELF.fetch("http://localhost/api/pools", {
@@ -197,7 +198,7 @@ describe("Pool Management API", () => {
   });
 
   it("can delete custom pool", async () => {
-    const cookie = await registerAndGetCookie("delcustpool", "12345");
+    const cookie = await registerAndGetCookie("delcustpool");
 
     // Create a custom pool
     const createRes = await SELF.fetch("http://localhost/api/pools", {
@@ -235,7 +236,7 @@ describe("Pool Management API", () => {
   });
 
   it("adds surah to pool and lists surahs enriched with metadata", async () => {
-    const cookie = await registerAndGetCookie("addsurah", "12345");
+    const cookie = await registerAndGetCookie("addsurah");
 
     // Get the Sabak pool
     const listRes = await SELF.fetch("http://localhost/api/pools", {
@@ -288,7 +289,7 @@ describe("Pool Management API", () => {
   });
 
   it("cannot add same surah to two pools (409)", async () => {
-    const cookie = await registerAndGetCookie("dupsurah", "12345");
+    const cookie = await registerAndGetCookie("dupsurah");
 
     // Get pools
     const listRes = await SELF.fetch("http://localhost/api/pools", {
@@ -323,7 +324,7 @@ describe("Pool Management API", () => {
   });
 
   it("moves surah between pools", async () => {
-    const cookie = await registerAndGetCookie("movesurah", "12345");
+    const cookie = await registerAndGetCookie("movesurah");
 
     // Get pools
     const listRes = await SELF.fetch("http://localhost/api/pools", {
@@ -377,7 +378,7 @@ describe("Pool Management API", () => {
   });
 
   it("removes surah from pool", async () => {
-    const cookie = await registerAndGetCookie("removesurah", "12345");
+    const cookie = await registerAndGetCookie("removesurah");
 
     // Get pools
     const listRes = await SELF.fetch("http://localhost/api/pools", {

@@ -4,10 +4,10 @@ import { getCookie } from "hono/cookie";
 type Env = { Bindings: { DB: D1Database; JWT_SECRET: string }; Variables: { userId: number } };
 
 /**
- * Hash a PIN with a salt using SHA-256 via Web Crypto API.
+ * Hash a password with a salt using SHA-256 via Web Crypto API.
  */
-export async function hashPin(pin: string, salt: string): Promise<string> {
-  const data = new TextEncoder().encode(pin + salt);
+export async function hashPassword(password: string, salt: string): Promise<string> {
+  const data = new TextEncoder().encode(password + salt);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
