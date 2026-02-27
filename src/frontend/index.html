@@ -1382,8 +1382,7 @@
       cell.onclick = () => {
         // Reset all cells
         grid.querySelectorAll('.cal-day').forEach(c => {
-          c.style.outline = '';
-          c.style.outlineOffset = '';
+          c.style.boxShadow = '';
           c.style.backgroundColor = '';
           if (c.dataset.today) {
             c.style.boxShadow = '0 0 0 2px #10b981';
