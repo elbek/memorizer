@@ -105,6 +105,70 @@
       border-color: #374151;
       background: #1f2937;
     }
+    /* Page background presets */
+    #quran-page-container.bg-white-preset {
+      border-color: #e5e7eb;
+      background: #ffffff;
+    }
+    html.dark #quran-page-container.bg-white-preset {
+      border-color: #374151;
+      background: #1f2937;
+    }
+    #quran-page-container.bg-cream-preset {
+      border-color: #e5d5c0;
+      background: linear-gradient(to bottom, #FFFCF5, #FFF8F0);
+    }
+    html.dark #quran-page-container.bg-cream-preset {
+      border-color: #374151;
+      background: #1f2937;
+    }
+    #quran-page-container.bg-sepia-preset {
+      border-color: #c9b99a;
+      background: linear-gradient(to bottom, #F5EDDA, #EDE3CC);
+    }
+    html.dark #quran-page-container.bg-sepia-preset {
+      border-color: #4a4030;
+      background: #2a2418;
+    }
+    #quran-page-container.bg-green-preset {
+      border-color: #a7d1b8;
+      background: linear-gradient(to bottom, #f0f9f4, #e6f4ec);
+    }
+    html.dark #quran-page-container.bg-green-preset {
+      border-color: #2d4a37;
+      background: #1a2e22;
+    }
+    #quran-page-container.bg-blue-preset {
+      border-color: #a3c4e0;
+      background: linear-gradient(to bottom, #f0f5fb, #e4eef8);
+    }
+    html.dark #quran-page-container.bg-blue-preset {
+      border-color: #2a3a4d;
+      background: #1a2433;
+    }
+    #quran-page-container.bg-rose-preset {
+      border-color: #ddb8c4;
+      background: linear-gradient(to bottom, #fdf2f5, #f9e8ed);
+    }
+    html.dark #quran-page-container.bg-rose-preset {
+      border-color: #4a2d37;
+      background: #2e1a22;
+    }
+    #quran-page-container.bg-gray-preset {
+      border-color: #d1d5db;
+      background: #f3f4f6;
+    }
+    html.dark #quran-page-container.bg-gray-preset {
+      border-color: #374151;
+      background: #111827;
+    }
+    /* Full reading mode */
+    .full-read-mode header,
+    .full-read-mode nav,
+    .full-read-mode #screen-quran > div > .flex { display: none !important; }
+    .full-read-mode #screen-quran > div > #quran-page-info { display: none !important; }
+    .full-read-mode main { padding-bottom: 0 !important; }
+    .full-read-mode #quran-page-container { border-radius: 0; border: none; min-height: 100vh; padding-top: 12px; }
 
     /* Surah header ornamental frame */
     .surah-header-wrapper {
@@ -464,9 +528,15 @@
                 class="w-14 text-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-1 py-1 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500">
               <span class="text-gray-400">/ 604</span>
             </div>
-            <button onclick="openQuranJump()"
-              class="px-3 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition active:scale-95"
-              title="Go to Surah">Surah</button>
+            <select id="quran-surah-select" onchange="goToSurahDirect(this.value)"
+              class="px-2 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 max-w-[100px]">
+              <option value="">Surah</option>
+            </select>
+            <button onclick="toggleFullRead()" id="quran-fullread-btn"
+              class="px-2 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition active:scale-95"
+              title="Full screen reading">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/></svg>
+            </button>
             <button onclick="nextQuranPage()" id="quran-next-btn"
               class="px-3 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
@@ -520,6 +590,23 @@
                 <option value="v2">1421AH</option>
                 <option value="v4">Tajweed</option>
               </select>
+            </div>
+
+            <!-- Page Background -->
+            <div class="flex items-center justify-between px-4 py-3">
+              <div>
+                <p class="text-sm font-medium text-gray-800 dark:text-gray-100">Page Background</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Quran reader page color</p>
+              </div>
+              <div id="settings-page-bg" class="flex flex-wrap gap-1.5">
+                <button onclick="setPageBg('cream')" data-bg="cream" class="w-7 h-7 rounded-full border-2 border-gray-300 dark:border-gray-500" style="background:linear-gradient(to bottom,#FFFCF5,#FFF8F0)" title="Cream"></button>
+                <button onclick="setPageBg('white')" data-bg="white" class="w-7 h-7 rounded-full border-2 border-gray-300 dark:border-gray-500" style="background:#ffffff" title="White"></button>
+                <button onclick="setPageBg('sepia')" data-bg="sepia" class="w-7 h-7 rounded-full border-2 border-gray-300 dark:border-gray-500" style="background:linear-gradient(to bottom,#F5EDDA,#EDE3CC)" title="Sepia"></button>
+                <button onclick="setPageBg('green')" data-bg="green" class="w-7 h-7 rounded-full border-2 border-gray-300 dark:border-gray-500" style="background:linear-gradient(to bottom,#f0f9f4,#e6f4ec)" title="Green"></button>
+                <button onclick="setPageBg('blue')" data-bg="blue" class="w-7 h-7 rounded-full border-2 border-gray-300 dark:border-gray-500" style="background:linear-gradient(to bottom,#f0f5fb,#e4eef8)" title="Blue"></button>
+                <button onclick="setPageBg('rose')" data-bg="rose" class="w-7 h-7 rounded-full border-2 border-gray-300 dark:border-gray-500" style="background:linear-gradient(to bottom,#fdf2f5,#f9e8ed)" title="Rose"></button>
+                <button onclick="setPageBg('gray')" data-bg="gray" class="w-7 h-7 rounded-full border-2 border-gray-300 dark:border-gray-500" style="background:#f3f4f6" title="Gray"></button>
+              </div>
             </div>
           </div>
         </div>
@@ -713,20 +800,6 @@
     </div>
   </div>
 
-  <!-- Go to Surah Modal -->
-  <div id="modal-quran-jump" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-    <div class="modal-backdrop absolute inset-0" onclick="closeModal('modal-quran-jump')"></div>
-    <div class="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-xl p-6 w-full max-w-sm relative z-10">
-      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Go to Surah</h3>
-      <select id="quran-jump-surah" onchange="onJumpSurahChange()"
-        class="w-full mb-4 px-3 py-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
-      </select>
-      <div class="flex gap-3">
-        <button onclick="closeModal('modal-quran-jump')" class="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition">Cancel</button>
-        <button onclick="goToSurah()" class="flex-1 py-2.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition">Go</button>
-      </div>
-    </div>
-  </div>
 
   <!-- ===================== JAVASCRIPT ===================== -->
   <script>
@@ -2128,6 +2201,24 @@
     v4: { label: 'Tajweed', fontPath: 'v4/colrv1', apiParam: 'v2' },
   };
   let currentMushaf = localStorage.getItem('quranMushaf') || 'v2';
+  // Page background
+  let currentPageBg = localStorage.getItem('quranPageBg') || 'cream';
+
+  function setPageBg(preset) {
+    currentPageBg = preset;
+    localStorage.setItem('quranPageBg', preset);
+    const el = document.getElementById('quran-page-container');
+    if (el) {
+      el.className = el.className.replace(/bg-\w+-preset/g, '').trim();
+      el.classList.add(`bg-${preset}-preset`);
+    }
+    // Highlight active swatch
+    document.querySelectorAll('#settings-page-bg button').forEach(btn => {
+      btn.classList.toggle('ring-2', btn.dataset.bg === preset);
+      btn.classList.toggle('ring-primary-500', btn.dataset.bg === preset);
+    });
+  }
+
   // Restore settings selectors on load
   { const sel = document.getElementById('settings-mushaf'); if (sel) sel.value = currentMushaf; }
   {
@@ -2135,6 +2226,7 @@
     const sel = document.getElementById('settings-theme');
     if (sel) sel.value = saved || 'system';
   }
+  setPageBg(currentPageBg);
 
   // Standard ayah counts per surah (fixed across all mushafs)
   const SURAH_AYAH_COUNTS = [0,7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,6,3,5,4,5,6];
@@ -2388,6 +2480,22 @@
     document.getElementById('quran-page-input').value = p;
   }
 
+  function toggleFullRead() {
+    const shell = document.getElementById('app-shell');
+    const entering = !shell.classList.contains('full-read-mode');
+    shell.classList.toggle('full-read-mode');
+    if (entering) {
+      // Tap quran container to exit full-read mode
+      const handler = (e) => {
+        if (e.target.closest('#quran-page-lines')) {
+          shell.classList.remove('full-read-mode');
+          document.getElementById('quran-page-container').removeEventListener('click', handler);
+        }
+      };
+      document.getElementById('quran-page-container').addEventListener('click', handler);
+    }
+  }
+
   function switchMushaf(mushaf) {
     currentMushaf = mushaf;
     localStorage.setItem('quranMushaf', mushaf);
@@ -2406,27 +2514,27 @@
     return quranSurahIndex;
   }
 
-  async function openQuranJump() {
-    const idx = await loadQuranIndex();
-    const sel = document.getElementById('quran-jump-surah');
-    if (sel.options.length === 0) {
-      for (let i = 1; i <= 114; i++) {
-        const info = SURAH_INFO[i];
-        const opt = document.createElement('option');
-        opt.value = i;
-        opt.textContent = `${i}. ${info.en} — ${info.ar}`;
-        sel.appendChild(opt);
-      }
+  // Populate surah dropdown
+  (function() {
+    const sel = document.getElementById('quran-surah-select');
+    if (!sel) return;
+    for (let i = 1; i <= 114; i++) {
+      const info = SURAH_INFO[i];
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = `${i}. ${info.en}`;
+      sel.appendChild(opt);
     }
-    openModal('modal-quran-jump');
-  }
+  })();
 
-  function goToSurah() {
-    const surahNum = document.getElementById('quran-jump-surah').value;
-    if (quranSurahIndex && quranSurahIndex[surahNum]) {
-      goToQuranPage(quranSurahIndex[surahNum]);
+  async function goToSurahDirect(surahNum) {
+    if (!surahNum) return;
+    const idx = await loadQuranIndex();
+    if (idx[surahNum]) {
+      goToQuranPage(idx[surahNum]);
     }
-    closeModal('modal-quran-jump');
+    // Reset select to show "Surah" placeholder
+    document.getElementById('quran-surah-select').value = '';
   }
 
   // Touch swipe support for Quran reader
