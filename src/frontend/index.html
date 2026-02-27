@@ -2293,12 +2293,15 @@
         }
       }
 
-      // Find max line number for this page
+      // Find line range — skip leading empty lines (ornamental pages like 1 & 2)
+      const firstContentLine = Math.min(...lines.keys());
+      const firstHeaderLine = headerLines.size > 0 ? Math.min(...headerLines.keys()) : firstContentLine;
+      const minLine = Math.min(firstContentLine, firstHeaderLine);
       const maxLine = Math.max(...lines.keys(), 15);
 
       // Render each line
       container.innerHTML = '';
-      for (let i = 1; i <= maxLine; i++) {
+      for (let i = minLine; i <= maxLine; i++) {
         const words = lines.get(i) || [];
         const headerInfo = headerLines.get(i);
 
