@@ -1342,10 +1342,12 @@
       const isToday = dateStr === todayStr;
 
       const cell = document.createElement('div');
-      cell.className = `cal-day flex flex-col items-center justify-center rounded-lg p-1 cursor-pointer transition ${
-        isToday ? 'ring-2 ring-primary-500 bg-primary-50' : 'hover:bg-gray-50'
-      }`;
-      if (isToday) cell.dataset.today = '1';
+      cell.className = `cal-day flex flex-col items-center justify-center rounded-lg p-1 cursor-pointer transition hover:bg-gray-50`;
+      if (isToday) {
+        cell.dataset.today = '1';
+        cell.style.boxShadow = '0 0 0 2px #10b981';
+        cell.style.backgroundColor = '#ecfdf5';
+      }
 
       const dayNum = document.createElement('span');
       dayNum.className = `text-sm ${isToday ? 'font-bold text-primary-700' : 'text-gray-700'}`;
@@ -1378,16 +1380,19 @@
       }
 
       cell.onclick = () => {
-        // Reset all cells to default style
+        // Reset all cells
         grid.querySelectorAll('.cal-day').forEach(c => {
-          c.classList.remove('ring-2', 'ring-primary-400', 'ring-primary-500', 'bg-primary-50', 'bg-blue-50');
+          c.style.outline = '';
+          c.style.outlineOffset = '';
+          c.style.backgroundColor = '';
           if (c.dataset.today) {
-            c.classList.add('ring-2', 'ring-primary-500', 'bg-primary-50');
+            c.style.boxShadow = '0 0 0 2px #10b981';
+            c.style.backgroundColor = '#ecfdf5';
           }
         });
         // Highlight selected cell
-        cell.classList.add('ring-2', 'ring-primary-400', 'bg-blue-50');
-        if (!isToday) cell.classList.remove('bg-primary-50');
+        cell.style.boxShadow = '0 0 0 2px #34d399';
+        cell.style.backgroundColor = isToday ? '#ecfdf5' : '#eff6ff';
         showDayDetail(dateStr, items);
       };
       grid.appendChild(cell);
