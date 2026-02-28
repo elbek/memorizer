@@ -200,7 +200,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 2%;
+      padding: 0 4.5%;
       direction: ltr;
       z-index: 2;
     }
@@ -213,16 +213,20 @@
       color: #ddd;
     }
     .surah-circle {
-      font-size: 13px;
-      font-weight: 800;
-      color: #000;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
       font-family: sans-serif;
       z-index: 3;
       flex-shrink: 0;
-      min-width: 30px;
+      width: 28px;
+      height: 28px;
+      line-height: 28px;
       text-align: center;
+      background: rgba(0,0,0,0.55);
+      border-radius: 50%;
     }
-    html.dark .surah-circle { color: #fff; }
+    html.dark .surah-circle { background: rgba(255,255,255,0.2); color: #eee; }
 
     /* Bismillah line */
     .bismillah-line {
