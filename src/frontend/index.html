@@ -199,13 +199,11 @@
       inset: 0;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 0 14%;
-      direction: ltr;
+      justify-content: center;
       z-index: 2;
     }
     .surah-name-arabic {
-      font-size: 24px;
+      font-size: 20px;
       color: #222;
       font-weight: 700;
     }
@@ -213,14 +211,18 @@
       color: #ddd;
     }
     .surah-circle {
-      font-size: 11px;
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 13px;
       font-weight: 700;
-      color: #444;
+      color: #222;
       font-family: sans-serif;
-      flex-shrink: 0;
       text-align: center;
     }
-    html.dark .surah-circle { color: #fff; text-shadow: 0 0 4px rgba(0,0,0,0.9); }
+    .surah-circle-left { left: 20%; }
+    .surah-circle-right { left: 80%; }
+    html.dark .surah-circle { color: #ddd; }
 
     /* Bismillah line */
     .bismillah-line {
@@ -2339,9 +2341,9 @@
     header.innerHTML = `
       <div class="frame-bg"></div>
       <div class="frame-content">
-        <span class="surah-circle">${arAyahs}</span>
+        <span class="surah-circle surah-circle-right">${arNum}</span>
         <span class="surah-name-arabic font-arabic">\u0633\u0648\u0631\u0629 ${arName}</span>
-        <span class="surah-circle">${arNum}</span>
+        <span class="surah-circle surah-circle-left">${arAyahs}</span>
       </div>`;
     return header;
   }
