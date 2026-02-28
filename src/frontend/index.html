@@ -374,15 +374,25 @@
               </svg>
             </div>
             <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200">Nothing scheduled for today</h3>
-            <p class="text-gray-400 mt-1 text-sm">Set up a schedule in the Pools tab to get started.</p>
+            <p class="text-gray-400 mt-1 text-sm">Set up a schedule in Schedules to get started.</p>
             <div id="today-upcoming" class="hidden mt-2"></div>
           </div>
         </div>
       </div>
 
-      <!-- Screen: Pools -->
-      <div id="screen-pools" class="screen fade-in">
-        <div class="py-4">
+      <!-- Screen: Manage (Pools / Schedules / Calendar / Reports) -->
+      <div id="screen-manage" class="screen fade-in">
+        <!-- Sub-tab bar -->
+        <div class="flex gap-1 pt-3 pb-2 overflow-x-auto -mx-1 px-1">
+          <button onclick="switchSubTab('pools')" class="sub-tab px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300" data-subtab="pools">Pools</button>
+          <button onclick="switchSubTab('schedules')" class="sub-tab px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600" data-subtab="schedules">Schedules</button>
+          <button onclick="switchSubTab('calendar')" class="sub-tab px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600" data-subtab="calendar">Calendar</button>
+          <button onclick="switchSubTab('reports')" class="sub-tab px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600" data-subtab="reports">Reports</button>
+        </div>
+
+      <!-- Sub: Pools -->
+      <div id="sub-pools" class="sub-screen">
+        <div class="py-2">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-xl font-bold text-gray-900 dark:text-white">Pool Management</h2>
             <button onclick="openCreatePoolModal()"
@@ -419,23 +429,23 @@
         </div>
       </div>
 
-      <!-- Screen: Schedules -->
-      <div id="screen-schedules" class="screen fade-in">
-        <div class="py-4">
+      <!-- Sub: Schedules -->
+      <div id="sub-schedules" class="sub-screen hidden">
+        <div class="py-2">
           <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Schedules</h2>
           <div id="schedules-loading" class="text-center py-12">
             <div class="inline-block w-8 h-8 border-3 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
           </div>
           <div id="schedules-list" class="hidden space-y-3"></div>
           <div id="schedules-empty" class="hidden text-center py-12">
-            <p class="text-gray-400 text-sm">No schedules yet. Create one from the Pools tab.</p>
+            <p class="text-gray-400 text-sm">No schedules yet. Create one from Pools.</p>
           </div>
         </div>
       </div>
 
-      <!-- Screen: Calendar -->
-      <div id="screen-calendar" class="screen fade-in">
-        <div class="py-4">
+      <!-- Sub: Calendar -->
+      <div id="sub-calendar" class="sub-screen hidden">
+        <div class="py-2">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-xl font-bold text-gray-900 dark:text-white">Calendar</h2>
           </div>
@@ -473,9 +483,9 @@
         </div>
       </div>
 
-      <!-- Screen: Reports -->
-      <div id="screen-reports" class="screen fade-in">
-        <div class="py-4">
+      <!-- Sub: Reports -->
+      <div id="sub-reports" class="sub-screen hidden">
+        <div class="py-2">
           <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Reports</h2>
 
           <!-- Summary cards -->
@@ -515,6 +525,8 @@
           </div>
         </div>
       </div>
+
+      </div> <!-- end screen-manage -->
 
       <!-- ===================== QURAN READER ===================== -->
       <div id="screen-quran" class="screen fade-in">
@@ -624,21 +636,9 @@
           <svg class="tab-icon w-6 h-6 text-gray-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
           <span class="text-[10px] font-medium text-gray-400 transition">Home</span>
         </button>
-        <button onclick="switchTab('pools')" class="tab-btn flex-1 flex flex-col items-center py-2.5 gap-0.5 transition" data-tab="pools">
-          <svg class="tab-icon w-6 h-6 text-gray-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-          <span class="text-[10px] font-medium text-gray-400 transition">Pools</span>
-        </button>
-        <button onclick="switchTab('schedules')" class="tab-btn flex-1 flex flex-col items-center py-2.5 gap-0.5 transition" data-tab="schedules">
+        <button onclick="switchTab('manage')" class="tab-btn flex-1 flex flex-col items-center py-2.5 gap-0.5 transition" data-tab="manage">
           <svg class="tab-icon w-6 h-6 text-gray-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01m-.01 4h.01"/></svg>
           <span class="text-[10px] font-medium text-gray-400 transition">Schedules</span>
-        </button>
-        <button onclick="switchTab('calendar')" class="tab-btn flex-1 flex flex-col items-center py-2.5 gap-0.5 transition" data-tab="calendar">
-          <svg class="tab-icon w-6 h-6 text-gray-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-          <span class="text-[10px] font-medium text-gray-400 transition">Calendar</span>
-        </button>
-        <button onclick="switchTab('reports')" class="tab-btn flex-1 flex flex-col items-center py-2.5 gap-0.5 transition" data-tab="reports">
-          <svg class="tab-icon w-6 h-6 text-gray-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-          <span class="text-[10px] font-medium text-gray-400 transition">Reports</span>
         </button>
         <button onclick="switchTab('quran')" class="tab-btn flex-1 flex flex-col items-center py-2.5 gap-0.5 transition" data-tab="quran">
           <svg class="tab-icon w-6 h-6 text-gray-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
@@ -1122,7 +1122,17 @@
   // ============================================================
   // NAVIGATION
   // ============================================================
+  // Map old tab names to the manage parent + sub-tab
+  const SUB_TAB_MAP = { pools: 'pools', schedules: 'schedules', calendar: 'calendar', reports: 'reports' };
+
   function switchTab(tab) {
+    // If an old sub-tab name is used, redirect to manage with that sub-tab
+    if (SUB_TAB_MAP[tab]) {
+      switchTab('manage');
+      switchSubTab(tab);
+      return;
+    }
+
     state.currentTab = tab;
     location.hash = tab;
     // Update tab buttons
@@ -1144,11 +1154,38 @@
 
     // Load data for tab
     if (tab === 'home') loadToday();
-    if (tab === 'pools') loadPools();
-    if (tab === 'schedules') loadSchedules();
-    if (tab === 'calendar') loadCalendar();
-    if (tab === 'reports') loadReports();
+    if (tab === 'manage') loadSubTab();
     if (tab === 'quran') loadQuranPage();
+  }
+
+  let currentSubTab = 'pools';
+
+  function switchSubTab(sub) {
+    currentSubTab = sub;
+    // Update sub-tab buttons
+    document.querySelectorAll('.sub-tab').forEach(btn => {
+      const isActive = btn.dataset.subtab === sub;
+      btn.classList.toggle('bg-primary-100', isActive);
+      btn.classList.toggle('dark:bg-primary-900/40', isActive);
+      btn.classList.toggle('text-primary-700', isActive);
+      btn.classList.toggle('dark:text-primary-300', isActive);
+      btn.classList.toggle('bg-gray-100', !isActive);
+      btn.classList.toggle('dark:bg-gray-700', !isActive);
+      btn.classList.toggle('text-gray-600', !isActive);
+      btn.classList.toggle('dark:text-gray-300', !isActive);
+    });
+    // Show/hide sub-screens
+    document.querySelectorAll('.sub-screen').forEach(s => s.classList.add('hidden'));
+    const el = document.getElementById('sub-' + sub);
+    if (el) el.classList.remove('hidden');
+    loadSubTab();
+  }
+
+  function loadSubTab() {
+    if (currentSubTab === 'pools') loadPools();
+    if (currentSubTab === 'schedules') loadSchedules();
+    if (currentSubTab === 'calendar') loadCalendar();
+    if (currentSubTab === 'reports') loadReports();
   }
 
   function showApp() {
@@ -1156,7 +1193,7 @@
     document.getElementById('app-shell').classList.add('active');
     document.getElementById('user-greeting').textContent = state.user;
     const hash = location.hash.replace('#', '');
-    const validTabs = ['home', 'pools', 'schedules', 'calendar', 'reports', 'quran', 'settings'];
+    const validTabs = ['home', 'manage', 'pools', 'schedules', 'calendar', 'reports', 'quran', 'settings'];
     switchTab(validTabs.includes(hash) ? hash : 'home');
   }
 
@@ -1270,12 +1307,12 @@
 
           itemEl.innerHTML = `
             <div class="flex items-start justify-between gap-3 ${statusClass ? 'rounded-lg p-2 border ' + statusClass : ''}">
-              <div class="flex-1 min-w-0">
+              <div class="flex-1 min-w-0 cursor-pointer" onclick="openQuranAt(${item.start_page})">
                 <div class="flex items-center gap-2">
                   <span class="text-sm font-semibold text-gray-800">${escHtml(item.surah_name)}</span>
                   <span class="font-arabic text-base text-gray-500" dir="rtl">${escHtml(surah ? surah.arabic : item.arabic)}</span>
                 </div>
-                <p class="text-xs text-gray-400 mt-0.5">Pages ${item.start_page} - ${item.end_page} (${pages} pg)</p>
+                <p class="text-xs text-primary-500 mt-0.5">Pages ${item.start_page} - ${item.end_page} (${pages} pg) →</p>
               </div>
               <div class="flex items-center gap-2 shrink-0" id="item-actions-${item.id}">
                 ${renderItemActions(item)}
@@ -2482,6 +2519,11 @@
     currentQuranPage = p;
     renderQuranPage(p);
     document.getElementById('quran-page-input').value = p;
+  }
+
+  function openQuranAt(page) {
+    switchTab('quran');
+    goToQuranPage(page);
   }
 
   function toggleFullRead() {
