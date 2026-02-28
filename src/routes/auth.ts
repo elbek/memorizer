@@ -67,7 +67,7 @@ auth.post("/register", async (c) => {
       maxAge: 30 * 24 * 60 * 60, // 30 days
     });
 
-    return c.json({ ok: true, name: name.trim() });
+    return c.json({ ok: true, name: name.trim(), token });
   } catch (err: unknown) {
     // Handle UNIQUE constraint violation (duplicate email)
     if (
@@ -120,5 +120,5 @@ auth.post("/login", async (c) => {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   });
 
-  return c.json({ ok: true, name: user.name });
+  return c.json({ ok: true, name: user.name, token });
 });

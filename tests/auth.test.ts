@@ -192,6 +192,82 @@ describe("Auth - Register", () => {
   });
 });
 
+describe("Auth - Token in response", () => {
+  it("register returns token in JSON body", async () => {
+    const res = await SELF.fetch("http://localhost/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "tokenreg@example.com", name: "tokenreg", password: "password1" }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { ok: boolean; token: string };
+    expect(body.ok).toBe(true);
+    expect(body.token).toBeTruthy();
+    expect(typeof body.token).toBe("string");
+    expect(body.token.split(".")).toHaveLength(3); // JWT format
+  });
+
+  it("login returns token in JSON body", async () => {
+    // Register user first (tests may not share DB state)
+    await SELF.fetch("http://localhost/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "tokenlogin@example.com", name: "tokenlogin", password: "password1" }),
+    });
+
+    const res = await SELF.fetch("http://localhost/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "tokenlogin@example.com", password: "password1" }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { ok: boolean; token: string };
+    expect(body.ok).toBe(true);
+    expect(body.token).toBeTruthy();
+    expect(body.token.split(".")).toHaveLength(3);
+  });
+});
+
+describe("Auth - Bearer token", () => {
+  let bearerToken: string;
+
+  beforeAll(async () => {
+    const res = await SELF.fetch("http://localhost/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "bearer@example.com", name: "beareruser", password: "password1" }),
+    });
+    const body = (await res.json()) as { token: string };
+    bearerToken = body.token;
+  });
+
+  it("accepts Authorization: Bearer header on protected routes", async () => {
+    const res = await SELF.fetch("http://localhost/api/pools", {
+      headers: { Authorization: `Bearer ${bearerToken}` },
+    });
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { pools: unknown[] };
+    expect(body.pools).toBeDefined();
+  });
+
+  it("rejects invalid Bearer token with 401", async () => {
+    const res = await SELF.fetch("http://localhost/api/pools", {
+      headers: { Authorization: "Bearer invalid.token.here" },
+    });
+
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects missing auth with 401", async () => {
+    const res = await SELF.fetch("http://localhost/api/pools");
+
+    expect(res.status).toBe(401);
+  });
+});
+
 describe("Auth - Login", () => {
   beforeAll(async () => {
     // Register a user for login tests

@@ -77,4 +77,40 @@ describe("generateSchedule", () => {
     const total = result.flat().reduce((s, c) => s + (c.endPage - c.startPage), 0);
     expect(total).toBeCloseTo(49.5);
   });
+
+  it("never splits short surahs across days", () => {
+    // Simulate Juz Amma-like surahs with fractional page counts
+    // Target ~2 pages/day, but surahs like An-Naba (1.5 pages) should not be split
+    const surahs = [
+      { number: 78, pages: 1.5 }, // An-Naba
+      { number: 79, pages: 1.5 }, // An-Nazi'at
+      { number: 80, pages: 1 },   // Abasa
+      { number: 81, pages: 0.5 }, // At-Takwir
+      { number: 82, pages: 0.5 }, // Al-Infitar
+      { number: 83, pages: 1.5 }, // Al-Mutaffifin
+      { number: 84, pages: 0.5 }, // Al-Inshiqaq
+      { number: 85, pages: 1 },   // Al-Buruj
+    ];
+    // Total: 8 pages across 4 days = 2 pages/day target
+    const result = generateSchedule(surahs, 4);
+    const total = result.flat().reduce((s, c) => s + (c.endPage - c.startPage), 0);
+    expect(total).toBe(8);
+
+    // Key assertion: each surah should appear in exactly one day (no splitting)
+    for (const surah of surahs) {
+      const daysContainingSurah = result.filter((day) =>
+        day.some((chunk) => chunk.surahNumber === surah.number)
+      );
+      expect(
+        daysContainingSurah.length,
+        `Surah ${surah.number} (${surah.pages} pages) should appear in exactly 1 day but appeared in ${daysContainingSurah.length}`
+      ).toBe(1);
+
+      // Each surah chunk should cover the full surah (startPage=0, endPage=pages)
+      const chunks = result.flat().filter((c) => c.surahNumber === surah.number);
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0].startPage).toBe(0);
+      expect(chunks[0].endPage).toBe(surah.pages);
+    }
+  });
 });

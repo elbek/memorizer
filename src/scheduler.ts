@@ -17,17 +17,6 @@ function roundToHalf(value: number): number {
 }
 
 /**
- * Distributes surah pages across a given number of days as evenly as possible.
- *
- * Algorithm:
- * 1. Calculate totalPages and targetPerDay
- * 2. Walk through surahs sequentially, filling each day up to the target
- * 3. When a surah doesn't fit entirely in the current day, split it
- * 4. Round splits to nearest 0.5 page (minimum chunk size)
- * 5. Last day gets everything remaining
- * 6. If there are more days than pages, some days will be empty
- */
-/**
  * Fisher-Yates shuffle (returns new array, does not mutate input)
  */
 function shuffleArray<T>(arr: T[]): T[] {
@@ -39,6 +28,19 @@ function shuffleArray<T>(arr: T[]): T[] {
   return result;
 }
 
+/**
+ * Distributes surah pages across a given number of days as evenly as possible.
+ *
+ * Algorithm:
+ * 1. Calculate totalPages and targetPerDay
+ * 2. Walk through surahs sequentially, filling each day up to the target
+ * 3. Short surahs (pages <= targetPerDay) are NEVER split — the whole surah
+ *    is assigned to one day, even if it means going over the daily target
+ * 4. Large surahs (pages > targetPerDay) are split across days, with splits
+ *    rounded to nearest 0.5 page
+ * 5. Last day gets everything remaining
+ * 6. If there are more days than pages, some days will be empty
+ */
 export function generateSchedule(
   surahs: SurahInput[],
   totalDays: number,
@@ -58,73 +60,102 @@ export function generateSchedule(
   let currentDayPages = 0;
 
   for (const surah of orderedSurahs) {
-    let surahRemaining = surah.pages;
-    let surahOffset = 0; // how far into this surah we've scheduled
+    // If we've gone past the last day, put everything on the last day
+    if (currentDay >= totalDays) {
+      currentDay = totalDays - 1;
+    }
 
-    while (surahRemaining > 0) {
-      // If we've gone past the last day, put everything on the last day
+    const isSmallSurah = surah.pages <= targetPerDay;
+
+    if (isSmallSurah) {
+      // NEVER split small surahs — assign the whole surah to one day
+      const isLastDay = currentDay === totalDays - 1;
+
+      if (!isLastDay && currentDayPages >= targetPerDay) {
+        // Current day is already at/over target, move to next day
+        currentDay++;
+        currentDayPages = 0;
+      }
+
+      // Clamp to last day if needed
       if (currentDay >= totalDays) {
         currentDay = totalDays - 1;
       }
 
-      const isLastDay = currentDay === totalDays - 1;
+      days[currentDay].push({
+        surahNumber: surah.number,
+        startPage: 0,
+        endPage: surah.pages,
+      });
+      currentDayPages += surah.pages;
 
-      if (isLastDay) {
-        // Last day gets everything remaining
-        days[currentDay].push({
-          surahNumber: surah.number,
-          startPage: surahOffset,
-          endPage: surahOffset + surahRemaining,
-        });
-        surahOffset += surahRemaining;
-        surahRemaining = 0;
-      } else {
-        const spaceInDay = targetPerDay - currentDayPages;
-        const roundedSpace = roundToHalf(spaceInDay);
+      // If adding this surah put us at or over target, move to next day
+      // (unless we're on the last day)
+      if (currentDay < totalDays - 1 && currentDayPages >= targetPerDay) {
+        currentDay++;
+        currentDayPages = 0;
+      }
+    } else {
+      // Large surah: must be split across days
+      let surahRemaining = surah.pages;
+      let surahOffset = 0;
 
-        if (roundedSpace <= 0) {
-          // Current day is full, move to next day
-          currentDay++;
-          currentDayPages = 0;
-          continue;
+      while (surahRemaining > 0) {
+        if (currentDay >= totalDays) {
+          currentDay = totalDays - 1;
         }
 
-        if (surahRemaining <= roundedSpace) {
-          // Entire remaining surah fits in this day
+        const isLastDay = currentDay === totalDays - 1;
+
+        if (isLastDay) {
           days[currentDay].push({
             surahNumber: surah.number,
             startPage: surahOffset,
             endPage: surahOffset + surahRemaining,
           });
-          currentDayPages += surahRemaining;
           surahOffset += surahRemaining;
           surahRemaining = 0;
         } else {
-          // Need to split: put what fits, carry the rest
-          let chunkSize = roundToHalf(spaceInDay);
+          const spaceInDay = targetPerDay - currentDayPages;
+          const roundedSpace = roundToHalf(spaceInDay);
 
-          // Ensure minimum chunk size of 0.5
-          if (chunkSize < 0.5) {
-            chunkSize = 0.5;
+          if (roundedSpace <= 0) {
+            currentDay++;
+            currentDayPages = 0;
+            continue;
           }
 
-          // Don't take more than what's remaining
-          if (chunkSize > surahRemaining) {
-            chunkSize = surahRemaining;
+          if (surahRemaining <= roundedSpace) {
+            // Rest of surah fits in this day
+            days[currentDay].push({
+              surahNumber: surah.number,
+              startPage: surahOffset,
+              endPage: surahOffset + surahRemaining,
+            });
+            currentDayPages += surahRemaining;
+            surahOffset += surahRemaining;
+            surahRemaining = 0;
+          } else {
+            let chunkSize = roundToHalf(spaceInDay);
+            if (chunkSize < 0.5) {
+              chunkSize = 0.5;
+            }
+            if (chunkSize > surahRemaining) {
+              chunkSize = surahRemaining;
+            }
+
+            days[currentDay].push({
+              surahNumber: surah.number,
+              startPage: surahOffset,
+              endPage: surahOffset + chunkSize,
+            });
+            currentDayPages += chunkSize;
+            surahOffset += chunkSize;
+            surahRemaining -= chunkSize;
+
+            currentDay++;
+            currentDayPages = 0;
           }
-
-          days[currentDay].push({
-            surahNumber: surah.number,
-            startPage: surahOffset,
-            endPage: surahOffset + chunkSize,
-          });
-          currentDayPages += chunkSize;
-          surahOffset += chunkSize;
-          surahRemaining -= chunkSize;
-
-          // Move to next day
-          currentDay++;
-          currentDayPages = 0;
         }
       }
     }

@@ -97,11 +97,20 @@ export async function verifyToken(token: string, secret: string): Promise<{ sub:
 }
 
 /**
- * Auth middleware: reads JWT from "token" cookie, verifies it,
- * and sets userId in context.
+ * Auth middleware: reads JWT from "token" cookie or Authorization: Bearer header,
+ * verifies it, and sets userId in context.
  */
 export async function authMiddleware(c: Context<Env>, next: Next) {
-  const token = getCookie(c, "token");
+  let token = getCookie(c, "token");
+
+  // Fall back to Bearer token from Authorization header
+  if (!token) {
+    const authHeader = c.req.header("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      token = authHeader.slice(7);
+    }
+  }
+
   if (!token) {
     return c.json({ error: "Unauthorized" }, 401);
   }
