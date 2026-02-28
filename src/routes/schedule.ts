@@ -380,13 +380,11 @@ export async function todayHandler(c: Context<Env>) {
     .bind(userId)
     .all<{ id: number; name: string }>();
 
-  const today = new Date();
-  const todayStr =
-    today.getUTCFullYear() +
-    "-" +
-    String(today.getUTCMonth() + 1).padStart(2, "0") +
-    "-" +
-    String(today.getUTCDate()).padStart(2, "0");
+  // Use client-provided local date to respect the user's timezone
+  const dateParam = c.req.query("date");
+  const todayStr = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
+    ? dateParam
+    : new Date().toISOString().split("T")[0];
 
   const pools: Array<{
     pool_id: number;

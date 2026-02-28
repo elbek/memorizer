@@ -1186,7 +1186,7 @@
     greetEl.textContent = `${greeting}, ${state.user}`;
 
     try {
-      const data = await api('GET', '/api/today');
+      const data = await api('GET', '/api/today?date=' + formatDate(new Date()));
       state.todayData = data.pools;
       loading.classList.add('hidden');
 
