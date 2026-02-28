@@ -199,7 +199,9 @@
       inset: 0;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: space-between;
+      padding: 0 3%;
+      direction: ltr;
     }
     .surah-name-arabic {
       font-size: 24px;
@@ -210,20 +212,14 @@
       color: #ddd;
     }
     .surah-circle {
-      position: absolute;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
-      color: #222;
-      text-align: center;
-      line-height: 1;
+      color: #333;
       font-family: sans-serif;
       z-index: 2;
+      flex-shrink: 0;
     }
-    html.dark .surah-circle { color: #ddd; }
-    .surah-circle-right { left: 93.5%; }
-    .surah-circle-left { left: 6.5%; }
+    html.dark .surah-circle { color: #ccc; }
 
     /* Bismillah line */
     .bismillah-line {
@@ -2341,10 +2337,10 @@
     header.className = 'surah-header-wrapper';
     header.innerHTML = `
       <div class="frame-bg"></div>
-      <span class="surah-circle surah-circle-right">${arNum}</span>
-      <span class="surah-circle surah-circle-left">${arAyahs}</span>
       <div class="frame-content">
+        <span class="surah-circle">${arAyahs}</span>
         <span class="surah-name-arabic font-arabic">\u0633\u0648\u0631\u0629 ${arName}</span>
+        <span class="surah-circle">${arNum}</span>
       </div>`;
     return header;
   }
@@ -2521,8 +2517,8 @@
   }
 
   function openQuranAt(page) {
+    currentQuranPage = Math.max(1, Math.min(604, parseInt(page) || 1));
     switchTab('quran');
-    goToQuranPage(page);
   }
 
   function toggleFullRead() {
