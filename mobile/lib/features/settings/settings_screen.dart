@@ -208,15 +208,21 @@ class SettingsScreen extends ConsumerWidget {
 
   static const _reciters = [
     (7, 'Mishari Rashid al-Afasy'),
-    (1, 'Abdul Basit (Murattal)'),
-    (2, 'Abdul Rahman al-Sudais'),
-    (3, 'Abu Bakr al-Shatri'),
-    (4, 'Sa\'ud ash-Shuraym'),
+    (2, 'AbdulBaset AbdulSamad (Murattal)'),
+    (1, 'AbdulBaset AbdulSamad (Mujawwad)'),
+    (3, 'Abdur-Rahman as-Sudais'),
+    (4, 'Abu Bakr al-Shatri'),
+    (10, 'Sa\'ud ash-Shuraym'),
     (5, 'Hani ar-Rifai'),
-    (6, 'Mahmoud Khalil al-Husary'),
-    (8, 'Maher al-Muaiqly'),
-    (9, 'Muhammad Ayyub'),
-    (10, 'Muhammad Jibreel'),
+    (6, 'Mahmoud Khalil Al-Husary'),
+    (12, 'Mahmoud Khalil Al-Husary (Muallim)'),
+    (9, 'Mohamed Siddiq al-Minshawi'),
+    (97, 'Yasser Ad-Dussary'),
+    (158, 'Ali Jaber'),
+    (13, 'Saad Al-Ghamdi'),
+    (104, 'Nasser Al-Qatami'),
+    (19, 'Ahmed Al-Ajmy'),
+    (161, 'Khalifah Al-Tunaiji'),
   ];
 
   String _reciterName(int id) =>

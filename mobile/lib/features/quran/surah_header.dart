@@ -16,7 +16,7 @@ class SurahHeader extends StatelessWidget {
     final surah = getSurah(surahNumber);
     if (surah == null) return const SizedBox.shrink();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? const Color(0xFFDDD) : const Color(0xFF222222);
+    final textColor = isDark ? const Color(0xFFDDDDDD) : const Color(0xFF222222);
 
     return SizedBox(
       height: 46,

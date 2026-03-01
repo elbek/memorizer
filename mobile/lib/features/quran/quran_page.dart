@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:memorizer/features/quran/font_cache.dart';
 import 'package:memorizer/features/quran/page_line.dart';
@@ -6,8 +8,9 @@ import 'package:memorizer/shared/theme.dart';
 
 const _gold = Color(0xFFCBB070);
 const _goldDark = Color(0xFF8A7340);
+const _longPressDuration = Duration(milliseconds: 300);
 
-class QuranPageView extends StatelessWidget {
+class QuranPageView extends StatefulWidget {
   const QuranPageView({
     super.key,
     required this.lines,
@@ -17,6 +20,7 @@ class QuranPageView extends StatelessWidget {
     this.isColorFont = false,
     this.activeAyahKey,
     this.onAyahTap,
+    this.onRangeSelected,
   });
 
   final List<PageLine>? lines;
@@ -25,7 +29,29 @@ class QuranPageView extends StatelessWidget {
   final String fontPath;
   final bool isColorFont;
   final String? activeAyahKey;
-  final ValueChanged<String>? onAyahTap;
+  final void Function(String ayahKey, Offset globalPosition)? onAyahTap;
+  final void Function(String startKey, String endKey, Offset globalPosition)?
+      onRangeSelected;
+
+  @override
+  State<QuranPageView> createState() => _QuranPageViewState();
+}
+
+class _QuranPageViewState extends State<QuranPageView> {
+  Set<String> _dragHighlightKeys = const {};
+  bool _isDragging = false;
+  String? _dragStartKey;
+  int _dragStartLineIdx = -1;
+  Timer? _longPressTimer;
+  Offset? _pointerDownLocal;
+  double _columnHeight = 1;
+  double _columnWidth = 1;
+
+  @override
+  void dispose() {
+    _longPressTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +59,7 @@ class QuranPageView extends StatelessWidget {
 
     return Container(
       color: isDark ? quranPageBgDark : quranPageBg,
-      child: loading || lines == null || lines!.isEmpty
+      child: widget.loading || widget.lines == null || widget.lines!.isEmpty
           ? _buildLoading(isDark)
           : _buildPage(isDark),
     );
@@ -54,19 +80,21 @@ class QuranPageView extends StatelessWidget {
     );
   }
 
-  /// Classify a line's relationship to the active ayah.
-  /// Returns: 0 = no match, 1 = all words match, 2 = partial (mixed line).
+  Set<String> get _highlightKeys {
+    if (_dragHighlightKeys.isNotEmpty) return _dragHighlightKeys;
+    if (widget.activeAyahKey != null) return {widget.activeAyahKey!};
+    return const {};
+  }
+
   int _lineMatchType(List<WordSpan> words) {
-    if (activeAyahKey == null || words.isEmpty) return 0;
-    final matchCount = words.where((w) => w.ayahKey == activeAyahKey).length;
+    final keys = _highlightKeys;
+    if (keys.isEmpty || words.isEmpty) return 0;
+    final matchCount = words.where((w) => keys.contains(w.ayahKey)).length;
     if (matchCount == 0) return 0;
     if (matchCount == words.length) return 1;
     return 2;
   }
 
-  /// Build a Text.rich with at most 3 grouped spans for partial-line highlight.
-  /// Words from the same ayah are contiguous, so we split into
-  /// [before] [active] [after] groups.
   Widget _buildPartialHighlight(
     List<WordSpan> words,
     String fontFamily,
@@ -74,11 +102,11 @@ class QuranPageView extends StatelessWidget {
     Color? textColor,
     Color highlightColor,
   ) {
-    // Find the range of active words
+    final keys = _highlightKeys;
     var firstActive = -1;
     var lastActive = -1;
     for (var i = 0; i < words.length; i++) {
-      if (words[i].ayahKey == activeAyahKey) {
+      if (keys.contains(words[i].ayahKey)) {
         if (firstActive == -1) firstActive = i;
         lastActive = i;
       }
@@ -88,26 +116,26 @@ class QuranPageView extends StatelessWidget {
       fontFamily: fontFamily,
       fontSize: fontSize,
       height: 1.6,
-      color: isColorFont ? null : textColor,
+      color: widget.isColorFont ? null : textColor,
     );
 
     final spans = <InlineSpan>[];
 
-    // Before-active segment
     if (firstActive > 0) {
-      final text = words.sublist(0, firstActive).map((w) => w.glyph).join(' ');
+      final text =
+          words.sublist(0, firstActive).map((w) => w.glyph).join(' ');
       spans.add(TextSpan(text: '$text ', style: baseStyle));
     }
 
-    // Active segment
-    final activeText =
-        words.sublist(firstActive, lastActive + 1).map((w) => w.glyph).join(' ');
+    final activeText = words
+        .sublist(firstActive, lastActive + 1)
+        .map((w) => w.glyph)
+        .join(' ');
     spans.add(TextSpan(
       text: activeText,
       style: baseStyle.copyWith(backgroundColor: highlightColor),
     ));
 
-    // After-active segment
     if (lastActive < words.length - 1) {
       final text =
           words.sublist(lastActive + 1).map((w) => w.glyph).join(' ');
@@ -122,19 +150,150 @@ class QuranPageView extends StatelessWidget {
     );
   }
 
+  int _lineIndexAtY(double y) {
+    final lineCount = widget.lines!.length;
+    return (y / _columnHeight * lineCount).floor().clamp(0, lineCount - 1);
+  }
+
+  String? _ayahKeyAtLineIndex(int idx) {
+    final lines = widget.lines!;
+    final lineCount = lines.length;
+    for (var d = 0; d < lineCount; d++) {
+      for (final i in [idx + d, idx - d]) {
+        if (i >= 0 && i < lineCount) {
+          final line = lines[i];
+          if (line is TextLine && line.words.isNotEmpty) {
+            return line.words.first.ayahKey;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  String? _ayahKeyAtPosition(Offset local) {
+    final idx = _lineIndexAtY(local.dy);
+    final line = widget.lines![idx];
+    if (line is! TextLine || line.words.isEmpty) {
+      return _ayahKeyAtLineIndex(idx);
+    }
+    final frac = 1.0 - (local.dx / _columnWidth);
+    final wordIdx =
+        (frac * line.words.length).floor().clamp(0, line.words.length - 1);
+    return line.words[wordIdx].ayahKey;
+  }
+
+  Set<String> _ayahKeysBetweenLines(int a, int b) {
+    final lo = a < b ? a : b;
+    final hi = a > b ? a : b;
+    final keys = <String>{};
+    for (var i = lo; i <= hi; i++) {
+      final line = widget.lines![i];
+      if (line is TextLine) {
+        for (final word in line.words) {
+          keys.add(word.ayahKey);
+        }
+      }
+    }
+    return keys;
+  }
+
+  void _onPointerDown(PointerDownEvent event) {
+    _pointerDownLocal = event.localPosition;
+    _longPressTimer?.cancel();
+
+    if (widget.onRangeSelected == null) return;
+
+    _longPressTimer = Timer(_longPressDuration, () {
+      if (!mounted) return;
+      final idx = _lineIndexAtY(_pointerDownLocal!.dy);
+      final key = _ayahKeyAtLineIndex(idx);
+      if (key == null) return;
+      _isDragging = true;
+      _dragStartKey = key;
+      _dragStartLineIdx = idx;
+      setState(() {
+        _dragHighlightKeys = _ayahKeysBetweenLines(idx, idx);
+      });
+    });
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    if (!_isDragging) {
+      if (_pointerDownLocal != null) {
+        final dx = (event.localPosition.dx - _pointerDownLocal!.dx).abs();
+        if (dx > 18) {
+          _longPressTimer?.cancel();
+        }
+      }
+      return;
+    }
+    if (!mounted) return;
+    final idx = _lineIndexAtY(event.localPosition.dy);
+    setState(() {
+      _dragHighlightKeys = _ayahKeysBetweenLines(_dragStartLineIdx, idx);
+    });
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    _longPressTimer?.cancel();
+
+    if (_isDragging) {
+      final idx = _lineIndexAtY(event.localPosition.dy);
+      final endKey = _ayahKeyAtLineIndex(idx);
+      final startKey = _dragStartKey;
+      _isDragging = false;
+      _dragStartKey = null;
+      _dragStartLineIdx = -1;
+      if (mounted) {
+        setState(() {
+          _dragHighlightKeys = const {};
+        });
+      }
+      if (startKey != null && endKey != null) {
+        widget.onRangeSelected?.call(startKey, endKey, event.position);
+      }
+      return;
+    }
+
+    if (_pointerDownLocal != null) {
+      final key = _ayahKeyAtPosition(event.localPosition);
+      if (key != null) {
+        widget.onAyahTap?.call(key, event.position);
+      }
+    }
+
+    _pointerDownLocal = null;
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    _longPressTimer?.cancel();
+    _isDragging = false;
+    _dragStartKey = null;
+    _dragStartLineIdx = -1;
+    _pointerDownLocal = null;
+    if (mounted) {
+      setState(() {
+        _dragHighlightKeys = const {};
+      });
+    }
+  }
+
   Widget _buildPage(bool isDark) {
     final textColor =
         isDark ? const Color(0xFFE8DFD0) : const Color(0xFF3D2B1F);
     final borderColor = isDark ? _goldDark : _gold;
-    final fontFamily = fontFamilyFor(fontPath, pageNumber);
+    final fontFamily = fontFamilyFor(widget.fontPath, widget.pageNumber);
     final highlightColor = _gold.withValues(alpha: isDark ? 0.15 : 0.18);
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final lineCount = lines!.length;
+        final lineCount = widget.lines!.length;
         final availableHeight = constraints.maxHeight - 28;
         final fontSize =
             (availableHeight / (lineCount * 1.8)).clamp(16.0, 32.0);
+        _columnHeight = constraints.maxHeight - 23;
+        _columnWidth = constraints.maxWidth - 36;
 
         return Container(
           margin: const EdgeInsets.fromLTRB(10, 4, 10, 4),
@@ -143,31 +302,32 @@ class QuranPageView extends StatelessWidget {
             borderRadius: BorderRadius.circular(2),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              for (final line in lines!)
-                switch (line) {
-                  HeaderLine(:final surahNumber) =>
-                    SurahHeader(surahNumber: surahNumber),
-                  BismillahLine() => Text(
-                      '\u0628\u0650\u0633\u0652\u0645\u0650 \u0627\u0644\u0644\u0651\u064e\u0647\u0650 \u0627\u0644\u0631\u0651\u064e\u062d\u0652\u0645\u064e\u0640\u0670\u0646\u0650 \u0627\u0644\u0631\u0651\u064e\u062d\u0650\u064a\u0645\u0650',
-                      textAlign: TextAlign.center,
-                      textDirection: TextDirection.rtl,
-                      style: TextStyle(
-                        fontSize: fontSize * 0.85,
-                        height: 1.6,
-                        color: textColor,
+          child: Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: _onPointerDown,
+            onPointerMove: _onPointerMove,
+            onPointerUp: _onPointerUp,
+            onPointerCancel: _onPointerCancel,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                for (final line in widget.lines!)
+                  switch (line) {
+                    HeaderLine(:final surahNumber) =>
+                      SurahHeader(surahNumber: surahNumber),
+                    BismillahLine() => Text(
+                        '\u0628\u0650\u0633\u0652\u0645\u0650 \u0627\u0644\u0644\u0651\u064e\u0647\u0650 \u0627\u0644\u0631\u0651\u064e\u062d\u0652\u0645\u064e\u0640\u0670\u0646\u0650 \u0627\u0644\u0631\u0651\u064e\u062d\u0650\u064a\u0645\u0650',
+                        textAlign: TextAlign.center,
+                        textDirection: TextDirection.rtl,
+                        style: TextStyle(
+                          fontSize: fontSize * 0.85,
+                          height: 1.6,
+                          color: textColor,
+                        ),
                       ),
-                    ),
-                  TextLine(:final text, :final words) => GestureDetector(
-                      onTap: onAyahTap != null && words.isNotEmpty
-                          ? () => onAyahTap!(words.first.ayahKey)
-                          : null,
-                      child: FittedBox(
+                    TextLine(:final text, :final words) => FittedBox(
                         fit: BoxFit.scaleDown,
                         child: switch (_lineMatchType(words)) {
-                          // Full line match — Container background (no text splitting)
                           1 => Container(
                               decoration: BoxDecoration(
                                 color: highlightColor,
@@ -182,14 +342,12 @@ class QuranPageView extends StatelessWidget {
                                   fontFamily: fontFamily,
                                   fontSize: fontSize,
                                   height: 1.6,
-                                  color: isColorFont ? null : textColor,
+                                  color: widget.isColorFont ? null : textColor,
                                 ),
                               ),
                             ),
-                          // Partial match — Text.rich with 2-3 grouped spans
-                          2 => _buildPartialHighlight(
-                              words, fontFamily, fontSize, textColor, highlightColor),
-                          // No match — plain Text
+                          2 => _buildPartialHighlight(words, fontFamily,
+                              fontSize, textColor, highlightColor),
                           _ => Text(
                               text,
                               textAlign: TextAlign.center,
@@ -199,14 +357,14 @@ class QuranPageView extends StatelessWidget {
                                 fontFamily: fontFamily,
                                 fontSize: fontSize,
                                 height: 1.6,
-                                color: isColorFont ? null : textColor,
+                                color: widget.isColorFont ? null : textColor,
                               ),
                             ),
                         },
                       ),
-                    ),
-                },
-            ],
+                  },
+              ],
+            ),
           ),
         );
       },
