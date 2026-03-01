@@ -61,7 +61,8 @@ class TranslationNotifier extends Notifier<AsyncValue<TranslationData?>> {
     final ids = settings.selectedTranslationIds;
     if (ids.isEmpty) return;
 
-    final cacheKey = '$ayahKey:${ids.join(',')}';
+    final sortedIds = [...ids]..sort();
+    final cacheKey = '$ayahKey:${sortedIds.join(',')}';
     if (_cache.containsKey(cacheKey)) {
       state = AsyncValue.data(_cache[cacheKey]);
       return;
@@ -129,9 +130,10 @@ class TranslationNotifier extends Notifier<AsyncValue<TranslationData?>> {
   }
 
   /// Remove HTML tags (footnote markers etc.) from translation text.
-  static String stripHtmlTags(String html) {
-    return html.replaceAll(RegExp(r'<[^>]*>'), '');
-  }
+  static final _htmlTagRegex = RegExp(r'<[^>]*>');
+
+  /// Remove HTML tags (footnote markers etc.) from translation text.
+  static String stripHtmlTags(String html) => html.replaceAll(_htmlTagRegex, '');
 
   void clear() {
     state = const AsyncValue.data(null);
