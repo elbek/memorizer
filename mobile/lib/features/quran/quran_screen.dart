@@ -115,18 +115,71 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
   void _showAyahMenu(BuildContext context, Offset position, int page, String ayahKey) {
     if (_readMode) setState(() { _readMode = false; });
     setState(() => _selectedAyahKey = ayahKey);
-    final rect = RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy);
-    showMenu<String>(
+
+    final parts = ayahKey.split(':');
+    final surahNum = int.tryParse(parts[0]) ?? 1;
+    final ayahNum = parts.length > 1 ? parts[1] : '1';
+    final surah = getSurah(surahNum);
+
+    showModalBottomSheet<String>(
       context: context,
-      position: rect,
-      items: [
-        const PopupMenuItem(value: 'play', child: Text('Start reciting')),
-        const PopupMenuItem(value: 'repeat', child: Text('Repeat reciting')),
-        const PopupMenuItem(value: 'repeatPage', child: Text('Repeat page')),
-        const PopupMenuItem(value: 'translate', child: Text('Translate')),
-      ],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: cs.onSurface.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text('${surah?.name ?? 'Surah $surahNum'}, Ayah $ayahNum',
+                    style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        )),
+                const SizedBox(height: 16),
+                _AyahAction(
+                  icon: Icons.play_arrow_rounded,
+                  label: 'Start reciting',
+                  subtitle: 'Play from this ayah',
+                  onTap: () => Navigator.pop(ctx, 'play'),
+                ),
+                _AyahAction(
+                  icon: Icons.repeat_rounded,
+                  label: 'Repeat ayah',
+                  subtitle: 'Loop this ayah',
+                  onTap: () => Navigator.pop(ctx, 'repeat'),
+                ),
+                _AyahAction(
+                  icon: Icons.repeat_on_rounded,
+                  label: 'Repeat page',
+                  subtitle: 'Loop all ayahs on this page',
+                  onTap: () => Navigator.pop(ctx, 'repeatPage'),
+                ),
+                _AyahAction(
+                  icon: Icons.translate_rounded,
+                  label: 'Translate',
+                  subtitle: 'View word-by-word & translations',
+                  onTap: () => Navigator.pop(ctx, 'translate'),
+                ),
+                const SizedBox(height: 4),
+              ],
+            ),
+          ),
+        );
+      },
     ).then((value) async {
       if (mounted) setState(() => _selectedAyahKey = null);
+      if (value == null) return;
       if (value == 'play') {
         _startAudio(page, fromAyahKey: ayahKey);
       } else if (value == 'repeat') {
@@ -167,15 +220,52 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
 
   void _showRangeMenu(BuildContext context, Offset position, int page, String startKey, String endKey) {
     if (_readMode) setState(() => _readMode = false);
-    final rect = RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy);
-    showMenu<String>(
+    showModalBottomSheet<String>(
       context: context,
-      position: rect,
-      items: [
-        PopupMenuItem(value: 'play', child: Text('Recite $startKey – $endKey')),
-        PopupMenuItem(value: 'repeat', child: Text('Repeat $startKey – $endKey')),
-      ],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: cs.onSurface.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text('$startKey – $endKey',
+                    style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        )),
+                const SizedBox(height: 16),
+                _AyahAction(
+                  icon: Icons.play_arrow_rounded,
+                  label: 'Recite range',
+                  subtitle: 'Play from $startKey to $endKey',
+                  onTap: () => Navigator.pop(ctx, 'play'),
+                ),
+                _AyahAction(
+                  icon: Icons.repeat_rounded,
+                  label: 'Repeat range',
+                  subtitle: 'Loop $startKey – $endKey',
+                  onTap: () => Navigator.pop(ctx, 'repeat'),
+                ),
+                const SizedBox(height: 4),
+              ],
+            ),
+          ),
+        );
+      },
     ).then((value) async {
+      if (value == null) return;
       final audioNotifier = ref.read(audioProvider.notifier);
       audioNotifier.onPageComplete = null;
       if (value == 'play') {
@@ -1485,6 +1575,72 @@ class _TranslationSheetState extends ConsumerState<_TranslationSheet> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AyahAction extends StatelessWidget {
+  const _AyahAction({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Material(
+        color: cs.onSurface.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: cs.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, size: 18, color: cs.primary),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: cs.onSurface,
+                          )),
+                      Text(subtitle,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: cs.onSurface.withValues(alpha: 0.5),
+                          )),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded,
+                    size: 18, color: cs.onSurface.withValues(alpha: 0.25)),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

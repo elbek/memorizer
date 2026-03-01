@@ -299,77 +299,158 @@ class _QuranPageViewState extends State<QuranPageView> {
 
         return Container(
           margin: const EdgeInsets.fromLTRB(10, 4, 10, 4),
-          decoration: BoxDecoration(
-            border: Border.all(color: borderColor, width: 1.5),
-            borderRadius: BorderRadius.circular(2),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Listener(
-            behavior: HitTestBehavior.opaque,
-            onPointerDown: _onPointerDown,
-            onPointerMove: _onPointerMove,
-            onPointerUp: _onPointerUp,
-            onPointerCancel: _onPointerCancel,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                for (final line in widget.lines!)
-                  switch (line) {
-                    HeaderLine(:final surahNumber) =>
-                      SurahHeader(surahNumber: surahNumber),
-                    BismillahLine() => Text(
-                        '\u0628\u0650\u0633\u0652\u0645\u0650 \u0627\u0644\u0644\u0651\u064e\u0647\u0650 \u0627\u0644\u0631\u0651\u064e\u062d\u0652\u0645\u064e\u0640\u0670\u0646\u0650 \u0627\u0644\u0631\u0651\u064e\u062d\u0650\u064a\u0645\u0650',
-                        textAlign: TextAlign.center,
-                        textDirection: TextDirection.rtl,
-                        style: TextStyle(
-                          fontSize: fontSize * 0.85,
-                          height: 1.6,
-                          color: textColor,
-                        ),
-                      ),
-                    TextLine(:final text, :final words) => FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: switch (_lineMatchType(words)) {
-                          1 => Container(
-                              decoration: BoxDecoration(
-                                color: highlightColor,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                text,
-                                textAlign: TextAlign.center,
-                                textDirection: TextDirection.rtl,
-                                maxLines: 1,
-                                style: TextStyle(
-                                  fontFamily: fontFamily,
-                                  fontSize: fontSize,
-                                  height: 1.6,
-                                  color: widget.isColorFont ? null : textColor,
+          child: CustomPaint(
+            painter: _OrnamentBorderPainter(color: borderColor),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Listener(
+                behavior: HitTestBehavior.opaque,
+                onPointerDown: _onPointerDown,
+                onPointerMove: _onPointerMove,
+                onPointerUp: _onPointerUp,
+                onPointerCancel: _onPointerCancel,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    for (final line in widget.lines!)
+                      switch (line) {
+                        HeaderLine(:final surahNumber) =>
+                          SurahHeader(surahNumber: surahNumber),
+                        BismillahLine() => Text(
+                            '\u0628\u0650\u0633\u0652\u0645\u0650 \u0627\u0644\u0644\u0651\u064e\u0647\u0650 \u0627\u0644\u0631\u0651\u064e\u062d\u0652\u0645\u064e\u0640\u0670\u0646\u0650 \u0627\u0644\u0631\u0651\u064e\u062d\u0650\u064a\u0645\u0650',
+                            textAlign: TextAlign.center,
+                            textDirection: TextDirection.rtl,
+                            style: TextStyle(
+                              fontSize: fontSize * 0.85,
+                              height: 1.6,
+                              color: textColor,
+                            ),
+                          ),
+                        TextLine(:final text, :final words) => FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: switch (_lineMatchType(words)) {
+                              1 => Container(
+                                  decoration: BoxDecoration(
+                                    color: highlightColor,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    text,
+                                    textAlign: TextAlign.center,
+                                    textDirection: TextDirection.rtl,
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontFamily: fontFamily,
+                                      fontSize: fontSize,
+                                      height: 1.6,
+                                      color: widget.isColorFont ? null : textColor,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          2 => _buildPartialHighlight(words, fontFamily,
-                              fontSize, textColor, highlightColor),
-                          _ => Text(
-                              text,
-                              textAlign: TextAlign.center,
-                              textDirection: TextDirection.rtl,
-                              maxLines: 1,
-                              style: TextStyle(
-                                fontFamily: fontFamily,
-                                fontSize: fontSize,
-                                height: 1.6,
-                                color: widget.isColorFont ? null : textColor,
-                              ),
-                            ),
-                        },
-                      ),
-                  },
-              ],
+                              2 => _buildPartialHighlight(words, fontFamily,
+                                  fontSize, textColor, highlightColor),
+                              _ => Text(
+                                  text,
+                                  textAlign: TextAlign.center,
+                                  textDirection: TextDirection.rtl,
+                                  maxLines: 1,
+                                  style: TextStyle(
+                                    fontFamily: fontFamily,
+                                    fontSize: fontSize,
+                                    height: 1.6,
+                                    color: widget.isColorFont ? null : textColor,
+                                  ),
+                                ),
+                            },
+                          ),
+                      },
+                  ],
+                ),
+              ),
             ),
           ),
         );
       },
     );
   }
+}
+
+class _OrnamentBorderPainter extends CustomPainter {
+  _OrnamentBorderPainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+
+    // Outer frame
+    final outer = RRect.fromLTRBR(0, 0, w, h, const Radius.circular(6));
+    canvas.drawRRect(outer, paint);
+
+    // Inner frame with gap
+    const g = 4.0; // gap between outer and inner
+    final inner = RRect.fromLTRBR(g, g, w - g, h - g, const Radius.circular(4));
+    canvas.drawRRect(inner, paint..strokeWidth = 0.7);
+
+    // Corner ornaments
+    paint
+      ..style = PaintingStyle.fill
+      ..strokeWidth = 0;
+    const cs = 10.0; // corner size
+    _drawCorner(canvas, paint, 0, 0, cs, 1, 1); // top-left
+    _drawCorner(canvas, paint, w, 0, cs, -1, 1); // top-right
+    _drawCorner(canvas, paint, 0, h, cs, 1, -1); // bottom-left
+    _drawCorner(canvas, paint, w, h, cs, -1, -1); // bottom-right
+
+    // Edge midpoint ornaments
+    _drawEdgeDiamond(canvas, paint, w / 2, 0, 5); // top
+    _drawEdgeDiamond(canvas, paint, w / 2, h, 5); // bottom
+    _drawEdgeDiamond(canvas, paint, 0, h / 2, 5); // left
+    _drawEdgeDiamond(canvas, paint, w, h / 2, 5); // right
+  }
+
+  void _drawCorner(
+      Canvas canvas, Paint paint, double cx, double cy, double s, int dx, int dy) {
+    // Small decorative petal at each corner
+    final path = Path();
+    // Arc petal
+    path.moveTo(cx, cy);
+    path.quadraticBezierTo(
+      cx + dx * s * 0.8,
+      cy + dy * s * 0.15,
+      cx + dx * s,
+      cy + dy * s * 0.5,
+    );
+    path.quadraticBezierTo(
+      cx + dx * s * 0.6,
+      cy + dy * s * 0.6,
+      cx + dx * s * 0.5,
+      cy + dy * s,
+    );
+    path.quadraticBezierTo(
+      cx + dx * s * 0.15,
+      cy + dy * s * 0.8,
+      cx,
+      cy,
+    );
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawEdgeDiamond(Canvas canvas, Paint paint, double cx, double cy, double r) {
+    final path = Path()
+      ..moveTo(cx, cy - r)
+      ..lineTo(cx + r * 0.6, cy)
+      ..lineTo(cx, cy + r)
+      ..lineTo(cx - r * 0.6, cy)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_OrnamentBorderPainter old) => old.color != color;
 }
