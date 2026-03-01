@@ -436,6 +436,7 @@ class _TranslationPickerScreenState
   late Set<int> _selected;
   List<TranslationResource>? _translations;
   bool _loading = true;
+  bool _error = false;
   String _query = '';
 
   @override
@@ -446,13 +447,14 @@ class _TranslationPickerScreenState
   }
 
   Future<void> _loadTranslations() async {
+    setState(() { _loading = true; _error = false; });
     try {
       final list = await ref
           .read(translationProvider.notifier)
           .fetchAvailableTranslations();
       if (mounted) setState(() { _translations = list; _loading = false; });
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() { _loading = false; _error = true; });
     }
   }
 
@@ -502,6 +504,21 @@ class _TranslationPickerScreenState
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          : _error
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Failed to load translations',
+                      style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  const SizedBox(height: 12),
+                  FilledButton.tonal(
+                    onPressed: _loadTranslations,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            )
           : Column(
               children: [
                 Padding(
