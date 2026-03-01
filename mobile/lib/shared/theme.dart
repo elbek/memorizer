@@ -161,3 +161,20 @@ final darkTheme = ThemeData(
 
 const quranPageBg = Color(0xFFF5F0E1);
 const quranPageBgDark = Color(0xFF2D2A24);
+
+/// Quran page background color presets: (name, light, dark).
+const quranPageColors = <(String, Color, Color)>[
+  ('Parchment', Color(0xFFF5F0E1), Color(0xFF2D2A24)),
+  ('White', Color(0xFFFFFFFF), Color(0xFF1E1E1E)),
+  ('Sepia', Color(0xFFF0E4CC), Color(0xFF302820)),
+  ('Olive', Color(0xFFECEDE2), Color(0xFF262A22)),
+  ('Sky', Color(0xFFE8EEF4), Color(0xFF1E2530)),
+  ('Rose', Color(0xFFF5ECE8), Color(0xFF2D2424)),
+  ('Lavender', Color(0xFFEDE8F4), Color(0xFF252030)),
+  ('Mint', Color(0xFFE6F0EC), Color(0xFF1E2A26)),
+];
+
+Color quranPageBgFor(int index, bool isDark) {
+  final i = index.clamp(0, quranPageColors.length - 1);
+  return isDark ? quranPageColors[i].$3 : quranPageColors[i].$2;
+}

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,7 @@ import 'package:memorizer/features/quran/surah_list_screen.dart';
 import 'package:memorizer/features/quran/translation_provider.dart';
 import 'package:memorizer/features/settings/settings_provider.dart';
 import 'package:memorizer/shared/surah_data.dart';
+import 'package:memorizer/shared/theme.dart';
 
 class QuranScreen extends ConsumerStatefulWidget {
   const QuranScreen({super.key, this.initialPage = 1, this.standalone = false});
@@ -25,6 +28,9 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
   late AudioNotifier _audioNotifier;
   final _focusNode = FocusNode();
   bool _readMode = false;
+  bool _controlsVisible = true;
+  Timer? _hideTimer;
+  String? _selectedAyahKey;
 
   @override
   void initState() {
@@ -42,11 +48,24 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
 
   @override
   void dispose() {
+    _hideTimer?.cancel();
     _audioNotifier.onPageComplete = null;
     Future(_audioNotifier.stop);
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _startHideTimer() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _controlsVisible = false);
+    });
+  }
+
+  void _showControls() {
+    if (!_controlsVisible) setState(() => _controlsVisible = true);
+    _startHideTimer();
   }
 
   void _goToPage(int page) {
@@ -94,7 +113,8 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
   }
 
   void _showAyahMenu(BuildContext context, Offset position, int page, String ayahKey) {
-    if (_readMode) setState(() => _readMode = false);
+    if (_readMode) setState(() { _readMode = false; });
+    setState(() => _selectedAyahKey = ayahKey);
     final rect = RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy);
     showMenu<String>(
       context: context,
@@ -106,6 +126,7 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
         const PopupMenuItem(value: 'translate', child: Text('Translate')),
       ],
     ).then((value) async {
+      if (mounted) setState(() => _selectedAyahKey = null);
       if (value == 'play') {
         _startAudio(page, fromAyahKey: ayahKey);
       } else if (value == 'repeat') {
@@ -251,10 +272,23 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(quranProvider);
     final audioState = ref.watch(audioProvider);
+
+    // Start hide timer when audio becomes active, reset visibility when it stops
+    if (audioState.isActive && _hideTimer == null) {
+      _controlsVisible = true;
+      _startHideTimer();
+    } else if (!audioState.isActive) {
+      _hideTimer?.cancel();
+      _hideTimer = null;
+      _controlsVisible = true;
+    }
     final bookmarks = ref.watch(bookmarkProvider);
     final isBookmarked = bookmarks.contains(state.currentPage);
+    final settings = ref.watch(settingsProvider);
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final pageBgColor = quranPageBgFor(settings.pageColorIndex, isDark);
     final currentSurah = _surahForPage(state.currentPage, state.surahStartPages);
 
     return Focus(
@@ -361,7 +395,13 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
                 ],
               ),
         body: GestureDetector(
-          onTap: _readMode ? () => setState(() => _readMode = false) : null,
+          onTap: () {
+            if (_readMode) {
+              setState(() => _readMode = false);
+            } else if (audioState.isActive) {
+              _showControls();
+            }
+          },
           child: Stack(
             children: [
               PageView.builder(
@@ -387,9 +427,10 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
                     loading: isCurrent ? state.loading : cachedLines == null,
                     fontPath: notifier.fontPath,
                     isColorFont: state.mushaf == MushafVersion.v4,
+                    backgroundColor: pageBgColor,
                     activeAyahKey: audioState.currentPage == pageNum
                         ? audioState.currentAyahKey
-                        : null,
+                        : (pageNum == state.currentPage ? _selectedAyahKey : null),
                     onAyahTap: (ayahKey, position) =>
                         _showAyahMenu(context, position, pageNum, ayahKey),
                     onRangeSelected: (startKey, endKey, position) =>
@@ -436,97 +477,133 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
               // Audio mini controls
               if (audioState.isActive)
                 Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: cs.surface,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, -2),
-                        ),
-                      ],
-                    ),
-                    child: SafeArea(
-                      top: false,
-                      child: Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.skip_previous_rounded, size: 22),
-                            onPressed: audioState.currentAyahIndex > 0
-                                ? () => ref.read(audioProvider.notifier).skipPrevious()
-                                : null,
-                            tooltip: 'Previous ayah',
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.stop_rounded, size: 22),
-                            onPressed: () => ref.read(audioProvider.notifier).stop(),
-                            tooltip: 'Stop',
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              audioState.status == AudioPlaybackStatus.playing
-                                  ? Icons.pause_rounded
-                                  : Icons.play_arrow_rounded,
-                              size: 22,
-                            ),
-                            onPressed: () => ref.read(audioProvider.notifier).togglePlayPause(),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.skip_next_rounded, size: 22),
-                            onPressed: () => ref.read(audioProvider.notifier).skipNext(),
-                            tooltip: 'Next ayah',
-                          ),
-                          const Spacer(),
-                          if (audioState.repeating)
-                            GestureDetector(
-                              onTap: () => _showRangeConfigSheet(context, audioState),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: cs.primary.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(4),
+                  bottom: 8,
+                  left: 12,
+                  right: 12,
+                  child: SafeArea(
+                    top: false,
+                    child: AnimatedSlide(
+                      offset: _controlsVisible ? Offset.zero : const Offset(0, 1.5),
+                      duration: const Duration(milliseconds: 300),
+                      curve: _controlsVisible ? Curves.easeOut : Curves.easeIn,
+                      child: AnimatedOpacity(
+                        opacity: _controlsVisible ? 1.0 : 0.0,
+                        duration: const Duration(milliseconds: 250),
+                        child: GestureDetector(
+                          onTap: _showControls,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: cs.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: cs.outline.withValues(alpha: 0.1)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.08),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
                                 ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
+                              ],
+                            ),
+                            child: Builder(
+                              builder: (context) {
+                                // Compute surah-level progress
+                                final key = audioState.currentAyahKey;
+                                final keyParts = key?.split(':');
+                                final surahNum = int.tryParse(keyParts?.first ?? '') ?? 0;
+                                final ayahNum = int.tryParse(keyParts != null && keyParts.length > 1 ? keyParts[1] : '') ?? 0;
+                                final surahInfo = getSurah(surahNum);
+                                final totalAyahs = surahInfo?.ayahCount ?? 1;
+
+                                return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Progress bar (surah-level)
+                                if (totalAyahs > 1)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4, left: 8, right: 8),
+                                    child: _AyahProgressBar(
+                                      total: totalAyahs,
+                                      current: ayahNum - 1,
+                                      color: cs.primary,
+                                    ),
+                                  ),
+                                Row(
                                   children: [
-                                    Icon(Icons.repeat_rounded, size: 14, color: cs.primary),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      audioState.hasRange
-                                          ? '${audioState.ayahKeys[audioState.rangeStartIndex!]} – ${audioState.ayahKeys[audioState.rangeEndIndex!]}'
-                                          : audioState.currentAyahKey ?? '',
-                                      style: TextStyle(fontSize: 12, color: cs.primary, fontWeight: FontWeight.w600),
+                                    // Ayah label
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: audioState.repeating
+                                            ? () {
+                                                _showControls();
+                                                _showRangeConfigSheet(context, audioState);
+                                              }
+                                            : null,
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(left: 8),
+                                          child: _AudioLabel(audioState: audioState),
+                                        ),
+                                      ),
+                                    ),
+                                    // Transport controls
+                                    IconButton(
+                                      icon: const Icon(Icons.skip_previous_rounded, size: 20),
+                                      onPressed: audioState.currentAyahIndex > 0
+                                          ? () {
+                                              _showControls();
+                                              ref.read(audioProvider.notifier).skipPrevious();
+                                            }
+                                          : null,
+                                      tooltip: 'Previous ayah',
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    // Hero play/pause button
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: cs.primary,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: IconButton(
+                                        icon: Icon(
+                                          audioState.status == AudioPlaybackStatus.playing
+                                              ? Icons.pause_rounded
+                                              : Icons.play_arrow_rounded,
+                                          size: 22,
+                                          color: cs.onPrimary,
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        onPressed: () {
+                                          _showControls();
+                                          ref.read(audioProvider.notifier).togglePlayPause();
+                                        },
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.skip_next_rounded, size: 20),
+                                      onPressed: () {
+                                        _showControls();
+                                        ref.read(audioProvider.notifier).skipNext();
+                                      },
+                                      tooltip: 'Next ayah',
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.stop_rounded, size: 20,
+                                          color: cs.onSurface.withValues(alpha: 0.5)),
+                                      onPressed: () => ref.read(audioProvider.notifier).stop(),
+                                      tooltip: 'Stop',
+                                      visualDensity: VisualDensity.compact,
                                     ),
                                   ],
                                 ),
-                              ),
-                            )
-                          else if (audioState.hasRange)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 4, left: 4),
-                              child: Text(
-                                '${audioState.ayahKeys[audioState.rangeStartIndex!]} – ${audioState.ayahKeys[audioState.rangeEndIndex!]}',
-                                style: TextStyle(fontSize: 12, color: cs.onSurface.withValues(alpha: 0.6)),
-                              ),
-                            )
-                          else if (audioState.currentAyahKey != null)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 12, left: 4),
-                              child: Text(
-                                audioState.currentAyahKey!,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: cs.onSurface.withValues(alpha: 0.6),
-                                ),
-                              ),
+                              ],
+                            );
+                              },
                             ),
-                        ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -1184,7 +1261,7 @@ class _AyahPickerScreenState extends State<_AyahPickerScreen> {
   }
 }
 
-class _TranslationSheet extends ConsumerWidget {
+class _TranslationSheet extends ConsumerStatefulWidget {
   const _TranslationSheet({
     required this.ayahKey,
     required this.scrollController,
@@ -1193,17 +1270,57 @@ class _TranslationSheet extends ConsumerWidget {
   final ScrollController scrollController;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_TranslationSheet> createState() => _TranslationSheetState();
+}
+
+class _TranslationSheetState extends ConsumerState<_TranslationSheet> {
+  late String _currentKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentKey = widget.ayahKey;
+  }
+
+  void _goToAyah(String key) {
+    setState(() => _currentKey = key);
+    ref.read(translationProvider.notifier).fetchForAyah(key);
+  }
+
+  String? _prevAyahKey() {
+    final parts = _currentKey.split(':');
+    final surah = int.tryParse(parts[0]) ?? 1;
+    final ayah = int.tryParse(parts.length > 1 ? parts[1] : '1') ?? 1;
+    if (ayah > 1) return '$surah:${ayah - 1}';
+    if (surah <= 1) return null;
+    final prevSurah = getSurah(surah - 1);
+    if (prevSurah == null) return null;
+    return '${surah - 1}:${prevSurah.ayahCount}';
+  }
+
+  String? _nextAyahKey() {
+    final parts = _currentKey.split(':');
+    final surah = int.tryParse(parts[0]) ?? 1;
+    final ayah = int.tryParse(parts.length > 1 ? parts[1] : '1') ?? 1;
+    final currentSurah = getSurah(surah);
+    if (currentSurah != null && ayah < currentSurah.ayahCount) return '$surah:${ayah + 1}';
+    if (surah >= 114) return null;
+    return '${surah + 1}:1';
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final translationState = ref.watch(translationProvider);
     final settings = ref.watch(settingsProvider);
     final cs = Theme.of(context).colorScheme;
 
-    // Parse surah name for header
-    final parts = ayahKey.split(':');
+    final parts = _currentKey.split(':');
     final surahNum = int.tryParse(parts[0]) ?? 1;
     final ayahNum = parts.length > 1 ? parts[1] : '1';
     final surah = getSurah(surahNum);
     final headerText = '${surah?.name ?? 'Surah $surahNum'}, Ayah $ayahNum';
+    final prev = _prevAyahKey();
+    final next = _nextAyahKey();
 
     return SafeArea(
       child: Column(
@@ -1216,11 +1333,29 @@ class _TranslationSheet extends ConsumerWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 12),
-          Text(headerText,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  )),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded, size: 22),
+                onPressed: next != null ? () => _goToAyah(next) : null,
+                visualDensity: VisualDensity.compact,
+              ),
+              const Spacer(),
+              Text(headerText,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      )),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded, size: 22),
+                onPressed: prev != null ? () => _goToAyah(prev) : null,
+                visualDensity: VisualDensity.compact,
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
           const SizedBox(height: 4),
           Expanded(
             child: translationState.when(
@@ -1249,74 +1384,68 @@ class _TranslationSheet extends ConsumerWidget {
                   );
                 }
                 return ListView(
-                  controller: scrollController,
+                  controller: widget.scrollController,
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                   children: [
                     // Word-by-word section
                     if (settings.wordByWordEnabled && data.words.isNotEmpty) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8, top: 4),
-                        child: Text('Word by Word',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
-                              color: cs.onSurface.withValues(alpha: 0.45),
-                            )),
-                      ),
-                      SizedBox(
-                        height: 96,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          reverse: true, // RTL
-                          itemCount: data.words.length,
-                          separatorBuilder: (_, _) => const SizedBox(width: 8),
-                          itemBuilder: (_, i) {
-                            final w = data.words[i];
-                            return Container(
-                              constraints: const BoxConstraints(minWidth: 64, maxWidth: 140),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: cs.onSurface.withValues(alpha: 0.04),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: cs.outline.withValues(alpha: 0.1)),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(w.arabic,
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w500,
-                                        color: cs.onSurface,
-                                      ),
-                                      textDirection: TextDirection.rtl),
-                                  const SizedBox(height: 4),
-                                  Text(w.translation,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: cs.onSurface.withValues(alpha: 0.7),
-                                      ),
-                                      textAlign: TextAlign.center),
-                                  if (w.transliteration.isNotEmpty)
-                                    Text(w.transliteration,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontStyle: FontStyle.italic,
-                                          color: cs.onSurface.withValues(alpha: 0.4),
-                                        ),
-                                        textAlign: TextAlign.center),
-                                ],
-                              ),
-                            );
-                          },
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: cs.onSurface.withValues(alpha: 0.03),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: cs.outline.withValues(alpha: 0.08)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Word by Word',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: cs.primary,
+                                )),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 0,
+                              runSpacing: 2,
+                              textDirection: TextDirection.rtl,
+                              children: [
+                                for (final w in data.words)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(w.arabic,
+                                            style: TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.w500,
+                                              color: cs.onSurface,
+                                            ),
+                                            textDirection: TextDirection.rtl),
+                                        Text(w.translation,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: cs.onSurface.withValues(alpha: 0.6),
+                                            )),
+                                        if (w.transliteration.isNotEmpty)
+                                          Text(w.transliteration,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontStyle: FontStyle.italic,
+                                                color: cs.onSurface.withValues(alpha: 0.35),
+                                              )),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 10),
                     ],
 
                     // Full translations
@@ -1359,4 +1488,139 @@ class _TranslationSheet extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _AudioLabel extends StatelessWidget {
+  const _AudioLabel({required this.audioState});
+  final AudioState audioState;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final key = audioState.currentAyahKey;
+    if (key == null) return const SizedBox.shrink();
+
+    final parts = key.split(':');
+    final surahNum = int.tryParse(parts[0]) ?? 0;
+    final surah = getSurah(surahNum);
+    final ayahNum = parts.length > 1 ? parts[1] : '';
+
+    if (audioState.repeating) {
+      final label = audioState.hasRange
+          ? '${audioState.ayahKeys[audioState.rangeStartIndex!]} – ${audioState.ayahKeys[audioState.rangeEndIndex!]}'
+          : key;
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.repeat_rounded, size: 14, color: cs.primary),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: cs.primary, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(surah?.name ?? 'Surah $surahNum',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
+                color: cs.onSurface)),
+        Text('Ayah $ayahNum',
+            style: TextStyle(fontSize: 11, color: cs.onSurface.withValues(alpha: 0.5))),
+      ],
+    );
+  }
+}
+
+class _AyahProgressBar extends StatelessWidget {
+  const _AyahProgressBar({
+    required this.total,
+    required this.current,
+    required this.color,
+    this.rangeStart,
+    this.rangeEnd,
+  });
+  final int total;
+  final int current;
+  final Color color;
+  final int? rangeStart;
+  final int? rangeEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return SizedBox(
+      height: 3,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return CustomPaint(
+            size: Size(constraints.maxWidth, 3),
+            painter: _ProgressPainter(
+              total: total,
+              current: current,
+              activeColor: color,
+              trackColor: cs.onSurface.withValues(alpha: 0.08),
+              rangeStart: rangeStart,
+              rangeEnd: rangeEnd,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ProgressPainter extends CustomPainter {
+  _ProgressPainter({
+    required this.total,
+    required this.current,
+    required this.activeColor,
+    required this.trackColor,
+    this.rangeStart,
+    this.rangeEnd,
+  });
+
+  final int total;
+  final int current;
+  final Color activeColor;
+  final Color trackColor;
+  final int? rangeStart;
+  final int? rangeEnd;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final trackPaint = Paint()..color = trackColor;
+    final rr = RRect.fromLTRBR(0, 0, size.width, size.height, const Radius.circular(1.5));
+    canvas.drawRRect(rr, trackPaint);
+
+    if (total <= 0) return;
+    final fraction = (current + 1) / total;
+    final fillWidth = size.width * fraction;
+    final fillPaint = Paint()..color = activeColor;
+    canvas.drawRRect(
+      RRect.fromLTRBR(0, 0, fillWidth, size.height, const Radius.circular(1.5)),
+      fillPaint,
+    );
+
+    // Range indicator
+    if (rangeStart != null && rangeEnd != null) {
+      final rangeStartX = size.width * rangeStart! / total;
+      final rangeEndX = size.width * (rangeEnd! + 1) / total;
+      final rangePaint = Paint()..color = activeColor.withValues(alpha: 0.2);
+      canvas.drawRRect(
+        RRect.fromLTRBR(rangeStartX, 0, rangeEndX, size.height, const Radius.circular(1.5)),
+        rangePaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ProgressPainter old) =>
+      old.total != total || old.current != current ||
+      old.rangeStart != rangeStart || old.rangeEnd != rangeEnd;
 }

@@ -10,18 +10,21 @@ class SettingsState {
     this.reciterId = 7,
     this.selectedTranslationIds = const [20],
     this.wordByWordEnabled = true,
+    this.pageColorIndex = 0,
   });
   final bool darkMode;
   final String mushafVersion;
   final int reciterId;
   final List<int> selectedTranslationIds;
   final bool wordByWordEnabled;
+  final int pageColorIndex;
   SettingsState copyWith({
     bool? darkMode,
     String? mushafVersion,
     int? reciterId,
     List<int>? selectedTranslationIds,
     bool? wordByWordEnabled,
+    int? pageColorIndex,
   }) =>
       SettingsState(
         darkMode: darkMode ?? this.darkMode,
@@ -29,6 +32,7 @@ class SettingsState {
         reciterId: reciterId ?? this.reciterId,
         selectedTranslationIds: selectedTranslationIds ?? this.selectedTranslationIds,
         wordByWordEnabled: wordByWordEnabled ?? this.wordByWordEnabled,
+        pageColorIndex: pageColorIndex ?? this.pageColorIndex,
       );
 }
 
@@ -54,6 +58,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
       reciterId: prefs.getInt('reciterId') ?? 7,
       selectedTranslationIds: selectedTranslationIds,
       wordByWordEnabled: prefs.getBool('wordByWordEnabled') ?? true,
+      pageColorIndex: prefs.getInt('pageColorIndex') ?? 0,
     );
   }
 
@@ -85,6 +90,12 @@ class SettingsNotifier extends Notifier<SettingsState> {
     final prefs = ref.read(sharedPrefsProvider);
     await prefs.setBool('wordByWordEnabled', value);
     state = state.copyWith(wordByWordEnabled: value);
+  }
+
+  Future<void> setPageColorIndex(int index) async {
+    final prefs = ref.read(sharedPrefsProvider);
+    await prefs.setInt('pageColorIndex', index);
+    state = state.copyWith(pageColorIndex: index);
   }
 }
 

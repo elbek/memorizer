@@ -19,6 +19,7 @@ class QuranPageView extends StatefulWidget {
     required this.fontPath,
     this.isColorFont = false,
     this.activeAyahKey,
+    this.backgroundColor,
     this.onAyahTap,
     this.onRangeSelected,
   });
@@ -29,6 +30,7 @@ class QuranPageView extends StatefulWidget {
   final String fontPath;
   final bool isColorFont;
   final String? activeAyahKey;
+  final Color? backgroundColor;
   final void Function(String ayahKey, Offset globalPosition)? onAyahTap;
   final void Function(String startKey, String endKey, Offset globalPosition)?
       onRangeSelected;
@@ -58,7 +60,7 @@ class _QuranPageViewState extends State<QuranPageView> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      color: isDark ? quranPageBgDark : quranPageBg,
+      color: widget.backgroundColor ?? (isDark ? quranPageBgDark : quranPageBg),
       child: widget.loading || widget.lines == null || widget.lines!.isEmpty
           ? _buildLoading(isDark)
           : _buildPage(isDark),

@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:memorizer/features/quran/qdc_dio.dart';
 import 'package:memorizer/features/settings/settings_provider.dart';
 
 enum AudioPlaybackStatus { idle, loading, playing, paused }
@@ -70,7 +70,7 @@ class _ChapterAudio {
 
 class AudioNotifier extends Notifier<AudioState> {
   final _player = AudioPlayer();
-  final _dio = Dio(BaseOptions(baseUrl: 'https://api.qurancdn.com/api/qdc'));
+  final _dio = qdcDio;
   final _chapterCache = <String, _ChapterAudio>{}; // "reciterId:chapter" -> audio
   bool _repeating = false;
   StreamSubscription<Duration>? _positionSub;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:memorizer/features/auth/auth_provider.dart';
 import 'package:memorizer/features/quran/translation_provider.dart';
+import 'package:memorizer/shared/theme.dart';
 import 'settings_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -31,20 +32,10 @@ class SettingsScreen extends ConsumerWidget {
                         color: cs.onSurface.withValues(alpha: 0.5),
                         fontSize: 13),
                   ),
-                  secondary: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      settings.darkMode
-                          ? Icons.dark_mode_rounded
-                          : Icons.light_mode_rounded,
-                      size: 20,
-                      color: cs.primary,
-                    ),
+                  secondary: _IconBox(
+                    icon: settings.darkMode
+                        ? Icons.dark_mode_rounded
+                        : Icons.light_mode_rounded,
                   ),
                   value: settings.darkMode,
                   onChanged: (v) =>
@@ -57,26 +48,48 @@ class SettingsScreen extends ConsumerWidget {
           // Quran section
           _SectionHeader(title: 'Quran'),
           Card(
-            child: ListTile(
-              leading: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const _IconBox(icon: Icons.auto_stories_rounded),
+                  title: const Text('Mushaf Version'),
+                  subtitle: Text(
+                    _mushafLabel(settings.mushafVersion),
+                    style: TextStyle(
+                        color: cs.onSurface.withValues(alpha: 0.5), fontSize: 13),
+                  ),
+                  trailing: Icon(Icons.chevron_right_rounded,
+                      color: cs.onSurface.withValues(alpha: 0.3)),
+                  onTap: () => _showMushafPicker(context, ref, settings.mushafVersion),
                 ),
-                child: Icon(Icons.auto_stories_rounded,
-                    size: 20, color: cs.primary),
-              ),
-              title: const Text('Mushaf Version'),
-              subtitle: Text(
-                _mushafLabel(settings.mushafVersion),
-                style: TextStyle(
-                    color: cs.onSurface.withValues(alpha: 0.5), fontSize: 13),
-              ),
-              trailing: Icon(Icons.chevron_right_rounded,
-                  color: cs.onSurface.withValues(alpha: 0.3)),
-              onTap: () => _showMushafPicker(context, ref, settings.mushafVersion),
+                ListTile(
+                  leading: const _IconBox(icon: Icons.palette_rounded),
+                  title: const Text('Page Color'),
+                  subtitle: Text(
+                    quranPageColors[settings.pageColorIndex.clamp(0, quranPageColors.length - 1)].$1,
+                    style: TextStyle(
+                        color: cs.onSurface.withValues(alpha: 0.5), fontSize: 13),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: quranPageBgFor(settings.pageColorIndex, settings.darkMode),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: cs.outline.withValues(alpha: 0.2)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(Icons.chevron_right_rounded,
+                          color: cs.onSurface.withValues(alpha: 0.3)),
+                    ],
+                  ),
+                  onTap: () => _showPageColorPicker(context, ref, settings),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 8),
@@ -84,16 +97,7 @@ class SettingsScreen extends ConsumerWidget {
           _SectionHeader(title: 'Audio'),
           Card(
             child: ListTile(
-              leading: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.headphones_rounded,
-                    size: 20, color: cs.primary),
-              ),
+              leading: const _IconBox(icon: Icons.headphones_rounded),
               title: const Text('Reciter'),
               subtitle: Text(
                 _reciterName(settings.reciterId),
@@ -112,15 +116,7 @@ class SettingsScreen extends ConsumerWidget {
             child: Column(
               children: [
                 ListTile(
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(Icons.translate_rounded, size: 20, color: cs.primary),
-                  ),
+                  leading: const _IconBox(icon: Icons.translate_rounded),
                   title: const Text('Translations'),
                   subtitle: Text(
                     _translationSummary(settings.selectedTranslationIds),
@@ -138,15 +134,7 @@ class SettingsScreen extends ConsumerWidget {
                     style: TextStyle(
                         color: cs.onSurface.withValues(alpha: 0.5), fontSize: 13),
                   ),
-                  secondary: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(Icons.text_fields_rounded, size: 20, color: cs.primary),
-                  ),
+                  secondary: const _IconBox(icon: Icons.text_fields_rounded),
                   value: settings.wordByWordEnabled,
                   onChanged: (v) =>
                       ref.read(settingsProvider.notifier).setWordByWordEnabled(v),
@@ -159,16 +147,7 @@ class SettingsScreen extends ConsumerWidget {
           _SectionHeader(title: 'Account'),
           Card(
             child: ListTile(
-              leading: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.logout_rounded,
-                    size: 20, color: Colors.red),
-              ),
+              leading: const _IconBox(icon: Icons.logout_rounded, color: Colors.red),
               title: const Text('Sign Out'),
               subtitle: Text(
                 'Log out of your account',
@@ -217,6 +196,58 @@ class SettingsScreen extends ConsumerWidget {
         'v4' => 'Tajweed Color',
         _ => v,
       };
+
+  void _showPageColorPicker(BuildContext context, WidgetRef ref, SettingsState settings) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('Page Color',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    )),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (var i = 0; i < quranPageColors.length; i++)
+                    _PageColorSwatch(
+                      index: i,
+                      name: quranPageColors[i].$1,
+                      color: quranPageBgFor(i, settings.darkMode),
+                      selected: i == settings.pageColorIndex,
+                      onTap: () {
+                        ref.read(settingsProvider.notifier).setPageColorIndex(i);
+                        Navigator.pop(context);
+                      },
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _showMushafPicker(BuildContext context, WidgetRef ref, String current) {
     showModalBottomSheet(
@@ -418,6 +449,76 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+class _PageColorSwatch extends StatelessWidget {
+  const _PageColorSwatch({
+    required this.index,
+    required this.name,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
+  final int index;
+  final String name;
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected ? cs.primary : cs.outline.withValues(alpha: 0.2),
+                width: selected ? 2.5 : 1,
+              ),
+            ),
+            child: selected
+                ? Icon(Icons.check_rounded, size: 20, color: cs.primary)
+                : null,
+          ),
+          const SizedBox(height: 4),
+          Text(name,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                color: cs.onSurface.withValues(alpha: selected ? 0.8 : 0.5),
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+class _IconBox extends StatelessWidget {
+  const _IconBox({required this.icon, this.color});
+  final IconData icon;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? Theme.of(context).colorScheme.primary;
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(icon, size: 20, color: c),
+    );
+  }
+}
+
 class _TranslationPickerScreen extends ConsumerStatefulWidget {
   const _TranslationPickerScreen({
     required this.selectedIds,
@@ -547,20 +648,7 @@ class _TranslationPickerScreenState
                   child: ListView(
                     children: [
                       for (final lang in sortedLangs) ...[
-                        Padding(
-                          padding:
-                              const EdgeInsets.fromLTRB(20, 12, 20, 4),
-                          child: Text(
-                            lang.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.8,
-                              color: cs.onSurface
-                                  .withValues(alpha: 0.45),
-                            ),
-                          ),
-                        ),
+                        _SectionHeader(title: lang),
                         for (final t in grouped[lang]!)
                           CheckboxListTile(
                             value: _selected.contains(t.id),

@@ -1,5 +1,5 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:memorizer/features/quran/qdc_dio.dart';
 import 'package:memorizer/features/settings/settings_provider.dart';
 
 class WordTranslation {
@@ -49,7 +49,7 @@ class TranslationResource {
 }
 
 class TranslationNotifier extends Notifier<AsyncValue<TranslationData?>> {
-  final _dio = Dio(BaseOptions(baseUrl: 'https://api.qurancdn.com/api/qdc'));
+  final _dio = qdcDio;
   final _cache = <String, TranslationData>{};
   List<TranslationResource>? _availableTranslations;
 
@@ -70,6 +70,12 @@ class TranslationNotifier extends Notifier<AsyncValue<TranslationData?>> {
 
     state = const AsyncValue.loading();
     try {
+      // Pre-fetch translation names (cached after first call)
+      final available = await fetchAvailableTranslations();
+      final nameById = <int, String>{
+        for (final r in available) r.id: r.name,
+      };
+
       final res = await _dio.get(
         '/verses/by_key/$ayahKey',
         queryParameters: {
@@ -97,11 +103,14 @@ class TranslationNotifier extends Notifier<AsyncValue<TranslationData?>> {
 
       // Parse translations
       final rawTranslations = (verse['translations'] as List<dynamic>?) ?? [];
-      final translations = rawTranslations.map((t) => VerseTranslation(
-        resourceId: (t['resource_id'] as num?)?.toInt() ?? 0,
-        resourceName: (t['resource_name'] as String?) ?? '',
-        text: stripHtmlTags((t['text'] as String?) ?? ''),
-      )).toList();
+      final translations = rawTranslations.map((t) {
+        final rid = (t['resource_id'] as num?)?.toInt() ?? 0;
+        return VerseTranslation(
+          resourceId: rid,
+          resourceName: nameById[rid] ?? (t['resource_name'] as String?) ?? '',
+          text: stripHtmlTags((t['text'] as String?) ?? ''),
+        );
+      }).toList();
 
       final result = TranslationData(
         verseKey: ayahKey,
@@ -129,7 +138,6 @@ class TranslationNotifier extends Notifier<AsyncValue<TranslationData?>> {
     return _availableTranslations!;
   }
 
-  /// Remove HTML tags (footnote markers etc.) from translation text.
   static final _htmlTagRegex = RegExp(r'<[^>]*>');
 
   /// Remove HTML tags (footnote markers etc.) from translation text.
