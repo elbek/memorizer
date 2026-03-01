@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:memorizer/features/quran/audio_provider.dart';
 import 'package:memorizer/features/quran/bookmark_provider.dart';
 import 'package:memorizer/features/quran/quran_provider.dart';
 import 'package:memorizer/features/quran/quran_page.dart';
@@ -36,6 +37,7 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
 
   @override
   void dispose() {
+    ref.read(audioProvider.notifier).onPageComplete = null;
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -52,6 +54,21 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
 
   void _nextPage() => _goToPage(ref.read(quranProvider).currentPage + 1);
   void _prevPage() => _goToPage(ref.read(quranProvider).currentPage - 1);
+
+  void _startAudio(int page, {String? fromAyahKey}) {
+    final audioNotifier = ref.read(audioProvider.notifier);
+    audioNotifier.onPageComplete = () {
+      if (!mounted) return;
+      final currentPage = ref.read(quranProvider).currentPage;
+      if (currentPage < 604) {
+        _goToPage(currentPage + 1);
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) _startAudio(currentPage + 1);
+        });
+      }
+    };
+    audioNotifier.playPage(page, fromAyahKey: fromAyahKey);
+  }
 
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
@@ -86,6 +103,7 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(quranProvider);
+    final audioState = ref.watch(audioProvider);
     final bookmarks = ref.watch(bookmarkProvider);
     final isBookmarked = bookmarks.contains(state.currentPage);
     final theme = Theme.of(context);
@@ -148,6 +166,24 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
                 actions: [
                   IconButton(
                     icon: Icon(
+                      audioState.isActive
+                          ? (audioState.status == AudioPlaybackStatus.playing
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded)
+                          : Icons.play_arrow_rounded,
+                      size: 22,
+                    ),
+                    tooltip: audioState.isActive ? 'Pause' : 'Play audio',
+                    onPressed: () {
+                      if (audioState.isActive) {
+                        ref.read(audioProvider.notifier).togglePlayPause();
+                      } else {
+                        _startAudio(state.currentPage);
+                      }
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(
                       isBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
                       size: 22,
                       color: isBookmarked ? cs.primary : null,
@@ -186,7 +222,12 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
                 reverse: true,
                 itemCount: state.totalPages,
                 onPageChanged: (index) {
-                  ref.read(quranProvider.notifier).goToPage(index + 1);
+                  final newPage = index + 1;
+                  final audio = ref.read(audioProvider);
+                  if (audio.isActive && audio.currentPage != newPage) {
+                    ref.read(audioProvider.notifier).stop();
+                  }
+                  ref.read(quranProvider.notifier).goToPage(newPage);
                 },
                 itemBuilder: (_, index) {
                   final pageNum = index + 1;
@@ -199,6 +240,13 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
                     loading: isCurrent ? state.loading : cachedLines == null,
                     fontPath: notifier.fontPath,
                     isColorFont: state.mushaf == MushafVersion.v4,
+                    activeAyahKey: audioState.currentPage == pageNum
+                        ? audioState.currentAyahKey
+                        : null,
+                    onAyahTap: _readMode
+                        ? null
+                        : (ayahKey) =>
+                            _startAudio(pageNum, fromAyahKey: ayahKey),
                   );
                 },
               ),
@@ -238,8 +286,74 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
                   child: Icon(Icons.bookmark_rounded,
                       size: 28, color: cs.primary.withValues(alpha: 0.6)),
                 ),
+              // Audio mini controls
+              if (audioState.isActive)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: cs.surface,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, -2),
+                        ),
+                      ],
+                    ),
+                    child: SafeArea(
+                      top: false,
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.stop_rounded, size: 22),
+                            onPressed: () => ref.read(audioProvider.notifier).stop(),
+                            tooltip: 'Stop',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.skip_previous_rounded, size: 22),
+                            onPressed: audioState.currentAyahIndex > 0
+                                ? () => ref.read(audioProvider.notifier).skipPrevious()
+                                : null,
+                            tooltip: 'Previous ayah',
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              audioState.status == AudioPlaybackStatus.playing
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                              size: 22,
+                            ),
+                            onPressed: () => ref.read(audioProvider.notifier).togglePlayPause(),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.skip_next_rounded, size: 22),
+                            onPressed: () => ref.read(audioProvider.notifier).skipNext(),
+                            tooltip: 'Next ayah',
+                          ),
+                          const Spacer(),
+                          if (audioState.currentAyahKey != null)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: Text(
+                                audioState.currentAyahKey!,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: cs.onSurface.withValues(alpha: 0.6),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               // Page number overlay in read mode
-              if (_readMode)
+              if (_readMode && !audioState.isActive)
                 Positioned(
                   bottom: 8,
                   left: 0,

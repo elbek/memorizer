@@ -54,12 +54,12 @@ void main() {
       SharedPreferences.setMockInitialValues({'auth_token': 'test-jwt-token'});
       final prefs = await SharedPreferences.getInstance();
       final dio = Dio();
-      final apiClient = ApiClient(dio: dio, prefs: prefs, baseUrl: 'https://test.example.com');
+      ApiClient(dio: dio, prefs: prefs, baseUrl: 'https://test.example.com');
 
       final options = RequestOptions(path: '/api/test');
       final interceptor = dio.interceptors.whereType<InterceptorsWrapper>().first;
 
-      interceptor.onRequest?.call(options, RequestInterceptorHandler());
+      interceptor.onRequest.call(options, RequestInterceptorHandler());
       await Future.delayed(const Duration(milliseconds: 50));
 
       expect(options.headers['Authorization'], 'Bearer test-jwt-token');
@@ -69,12 +69,12 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final dio = Dio();
-      final apiClient = ApiClient(dio: dio, prefs: prefs, baseUrl: 'https://test.example.com');
+      ApiClient(dio: dio, prefs: prefs, baseUrl: 'https://test.example.com');
 
       final options = RequestOptions(path: '/api/test');
       final interceptor = dio.interceptors.whereType<InterceptorsWrapper>().first;
 
-      interceptor.onRequest?.call(options, RequestInterceptorHandler());
+      interceptor.onRequest.call(options, RequestInterceptorHandler());
       await Future.delayed(const Duration(milliseconds: 50));
 
       expect(options.headers['Authorization'], isNull);

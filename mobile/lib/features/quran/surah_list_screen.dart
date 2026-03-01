@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:memorizer/features/quran/bookmark_provider.dart';
 import 'package:memorizer/features/settings/settings_provider.dart';
 import 'package:memorizer/shared/surah_data.dart';

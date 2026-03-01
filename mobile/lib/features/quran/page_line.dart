@@ -3,10 +3,20 @@ sealed class PageLine {
   const PageLine();
 }
 
+/// A single QCF glyph word with its owning ayah key.
+class WordSpan {
+  const WordSpan(this.glyph, this.ayahKey);
+  final String glyph;
+  final String ayahKey;
+}
+
 /// A line of QCF glyph text.
 class TextLine extends PageLine {
-  const TextLine(this.text);
+  const TextLine(this.text, {this.words = const []});
   final String text;
+
+  /// Per-word ayah ownership for word-level highlighting.
+  final List<WordSpan> words;
 
   @override
   bool operator ==(Object other) =>

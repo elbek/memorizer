@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:memorizer/core/api_client.dart';
 import 'package:memorizer/features/auth/auth_provider.dart';
-import 'package:memorizer/features/quran/page_line.dart';
 import 'package:memorizer/features/quran/quran_provider.dart';
 
 class MockApiClient extends Mock implements ApiClient {}

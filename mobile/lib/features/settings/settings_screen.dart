@@ -79,6 +79,32 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
+          // Audio section
+          _SectionHeader(title: 'Audio'),
+          Card(
+            child: ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: cs.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.headphones_rounded,
+                    size: 20, color: cs.primary),
+              ),
+              title: const Text('Reciter'),
+              subtitle: Text(
+                _reciterName(settings.reciterId),
+                style: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.5), fontSize: 13),
+              ),
+              trailing: Icon(Icons.chevron_right_rounded,
+                  color: cs.onSurface.withValues(alpha: 0.3)),
+              onTap: () => _showReciterPicker(context, ref, settings.reciterId),
+            ),
+          ),
+          const SizedBox(height: 8),
           // Account section
           _SectionHeader(title: 'Account'),
           Card(
@@ -175,6 +201,87 @@ class SettingsScreen extends ConsumerWidget {
               ),
             const SizedBox(height: 16),
           ],
+        ),
+      ),
+    );
+  }
+
+  static const _reciters = [
+    (7, 'Mishari Rashid al-Afasy'),
+    (1, 'Abdul Basit (Murattal)'),
+    (2, 'Abdul Rahman al-Sudais'),
+    (3, 'Abu Bakr al-Shatri'),
+    (4, 'Sa\'ud ash-Shuraym'),
+    (5, 'Hani ar-Rifai'),
+    (6, 'Mahmoud Khalil al-Husary'),
+    (8, 'Maher al-Muaiqly'),
+    (9, 'Muhammad Ayyub'),
+    (10, 'Muhammad Jibreel'),
+  ];
+
+  String _reciterName(int id) =>
+      _reciters.firstWhere((r) => r.$1 == id, orElse: () => (id, 'Reciter $id')).$2;
+
+  void _showReciterPicker(BuildContext context, WidgetRef ref, int current) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        minChildSize: 0.3,
+        maxChildSize: 0.8,
+        expand: false,
+        builder: (context, scrollController) => SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text('Reciter',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      )),
+              const SizedBox(height: 8),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  children: [
+                    for (final entry in _reciters)
+                      ListTile(
+                        leading: Radio<int>(
+                          value: entry.$1,
+                          groupValue: current,
+                          onChanged: (v) {
+                            if (v != null) {
+                              ref.read(settingsProvider.notifier).setReciterId(v);
+                            }
+                            Navigator.pop(context);
+                          },
+                        ),
+                        title: Text(entry.$2),
+                        onTap: () {
+                          ref.read(settingsProvider.notifier).setReciterId(entry.$1);
+                          Navigator.pop(context);
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

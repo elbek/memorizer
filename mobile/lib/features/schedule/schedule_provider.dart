@@ -64,8 +64,10 @@ class ScheduleNotifier extends Notifier<TodayState> {
   Future<void> loadToday({String? date}) async {
     state = state.copyWith(loading: true);
     try {
-      final params = <String, dynamic>{};
-      if (date != null) params['date'] = date;
+      // Always send the local date so the backend uses the user's timezone,
+      // not UTC, to determine the current day of the schedule.
+      final localDate = date ?? DateTime.now().toIso8601String().split('T')[0];
+      final params = <String, dynamic>{'date': localDate};
       final res = await _api.dio.get('/api/today', queryParameters: params);
       final data = res.data as Map<String, dynamic>;
       final pools = (data['pools'] as List).map((e) => TodayPool.fromJson(e as Map<String, dynamic>)).toList();

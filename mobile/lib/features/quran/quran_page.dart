@@ -15,6 +15,8 @@ class QuranPageView extends StatelessWidget {
     required this.loading,
     required this.fontPath,
     this.isColorFont = false,
+    this.activeAyahKey,
+    this.onAyahTap,
   });
 
   final List<PageLine>? lines;
@@ -22,6 +24,8 @@ class QuranPageView extends StatelessWidget {
   final bool loading;
   final String fontPath;
   final bool isColorFont;
+  final String? activeAyahKey;
+  final ValueChanged<String>? onAyahTap;
 
   @override
   Widget build(BuildContext context) {
@@ -50,11 +54,80 @@ class QuranPageView extends StatelessWidget {
     );
   }
 
+  /// Classify a line's relationship to the active ayah.
+  /// Returns: 0 = no match, 1 = all words match, 2 = partial (mixed line).
+  int _lineMatchType(List<WordSpan> words) {
+    if (activeAyahKey == null || words.isEmpty) return 0;
+    final matchCount = words.where((w) => w.ayahKey == activeAyahKey).length;
+    if (matchCount == 0) return 0;
+    if (matchCount == words.length) return 1;
+    return 2;
+  }
+
+  /// Build a Text.rich with at most 3 grouped spans for partial-line highlight.
+  /// Words from the same ayah are contiguous, so we split into
+  /// [before] [active] [after] groups.
+  Widget _buildPartialHighlight(
+    List<WordSpan> words,
+    String fontFamily,
+    double fontSize,
+    Color? textColor,
+    Color highlightColor,
+  ) {
+    // Find the range of active words
+    var firstActive = -1;
+    var lastActive = -1;
+    for (var i = 0; i < words.length; i++) {
+      if (words[i].ayahKey == activeAyahKey) {
+        if (firstActive == -1) firstActive = i;
+        lastActive = i;
+      }
+    }
+
+    final baseStyle = TextStyle(
+      fontFamily: fontFamily,
+      fontSize: fontSize,
+      height: 1.6,
+      color: isColorFont ? null : textColor,
+    );
+
+    final spans = <InlineSpan>[];
+
+    // Before-active segment
+    if (firstActive > 0) {
+      final text = words.sublist(0, firstActive).map((w) => w.glyph).join(' ');
+      spans.add(TextSpan(text: '$text ', style: baseStyle));
+    }
+
+    // Active segment
+    final activeText =
+        words.sublist(firstActive, lastActive + 1).map((w) => w.glyph).join(' ');
+    spans.add(TextSpan(
+      text: activeText,
+      style: baseStyle.copyWith(backgroundColor: highlightColor),
+    ));
+
+    // After-active segment
+    if (lastActive < words.length - 1) {
+      final text =
+          words.sublist(lastActive + 1).map((w) => w.glyph).join(' ');
+      spans.add(TextSpan(text: ' $text', style: baseStyle));
+    }
+
+    return Text.rich(
+      TextSpan(children: spans),
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.rtl,
+      maxLines: 1,
+    );
+  }
+
   Widget _buildPage(bool isDark) {
     final textColor =
         isDark ? const Color(0xFFE8DFD0) : const Color(0xFF3D2B1F);
     final borderColor = isDark ? _goldDark : _gold;
     final fontFamily = fontFamilyFor(fontPath, pageNumber);
+    final highlightColor = _gold.withValues(alpha: isDark ? 0.15 : 0.18);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -87,17 +160,49 @@ class QuranPageView extends StatelessWidget {
                         color: textColor,
                       ),
                     ),
-                  TextLine(:final text) => Text(
-                      text,
-                      textAlign: TextAlign.center,
-                      textDirection: TextDirection.rtl,
-                      maxLines: 1,
-                      overflow: TextOverflow.visible,
-                      style: TextStyle(
-                        fontFamily: fontFamily,
-                        fontSize: fontSize,
-                        height: 1.6,
-                        color: isColorFont ? null : textColor,
+                  TextLine(:final text, :final words) => GestureDetector(
+                      onTap: onAyahTap != null && words.isNotEmpty
+                          ? () => onAyahTap!(words.first.ayahKey)
+                          : null,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: switch (_lineMatchType(words)) {
+                          // Full line match — Container background (no text splitting)
+                          1 => Container(
+                              decoration: BoxDecoration(
+                                color: highlightColor,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                text,
+                                textAlign: TextAlign.center,
+                                textDirection: TextDirection.rtl,
+                                maxLines: 1,
+                                style: TextStyle(
+                                  fontFamily: fontFamily,
+                                  fontSize: fontSize,
+                                  height: 1.6,
+                                  color: isColorFont ? null : textColor,
+                                ),
+                              ),
+                            ),
+                          // Partial match — Text.rich with 2-3 grouped spans
+                          2 => _buildPartialHighlight(
+                              words, fontFamily, fontSize, textColor, highlightColor),
+                          // No match — plain Text
+                          _ => Text(
+                              text,
+                              textAlign: TextAlign.center,
+                              textDirection: TextDirection.rtl,
+                              maxLines: 1,
+                              style: TextStyle(
+                                fontFamily: fontFamily,
+                                fontSize: fontSize,
+                                height: 1.6,
+                                color: isColorFont ? null : textColor,
+                              ),
+                            ),
+                        },
                       ),
                     ),
                 },

@@ -155,6 +155,7 @@ class QuranNotifier extends Notifier<QuranState> {
   /// Al-Fatihah (1) and At-Tawbah (9) have no bismillah line.
   static List<PageLine> parseLines(List<dynamic> ayahs) {
     final lineMap = <int, StringBuffer>{};
+    final lineWords = <int, List<WordSpan>>{};
 
     // Track which surahs start on this page (ayah 1 present).
     final surahStarts = <({int surahNum, int firstTextLine})>[];
@@ -176,10 +177,12 @@ class QuranNotifier extends Notifier<QuranState> {
         final glyph = word['c'] as String? ?? '';
         if (glyph.isEmpty) continue;
         lineMap.putIfAbsent(lineNum, () => StringBuffer());
+        lineWords.putIfAbsent(lineNum, () => []);
         if (lineMap[lineNum]!.isNotEmpty) {
           lineMap[lineNum]!.write(' ');
         }
         lineMap[lineNum]!.write(glyph);
+        lineWords[lineNum]!.add(WordSpan(glyph, key));
       }
     }
 
@@ -219,7 +222,7 @@ class QuranNotifier extends Notifier<QuranState> {
       if (header != null && (text == null || text.isEmpty)) {
         result.add(header);
       } else if (text != null && text.isNotEmpty) {
-        result.add(TextLine(text));
+        result.add(TextLine(text, words: lineWords[i] ?? const []));
       }
     }
     return result;
@@ -231,7 +234,7 @@ class QuranNotifier extends Notifier<QuranState> {
         Future.wait<void>([
           _fetchPage(p).then((lines) => _cache[p] = lines),
           _fontCache.ensureFont(fontPath, p),
-        ]).catchError((_) {});
+        ]).catchError((_) => <void>[]);
       }
     }
   }
