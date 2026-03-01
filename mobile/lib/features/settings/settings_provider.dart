@@ -37,9 +37,17 @@ class SettingsNotifier extends Notifier<SettingsState> {
   SettingsState build() {
     final prefs = ref.watch(sharedPrefsProvider);
     final translationIdsJson = prefs.getString('selectedTranslationIds');
-    final selectedTranslationIds = translationIdsJson != null
-        ? List<int>.from(jsonDecode(translationIdsJson) as List)
-        : const [20];
+    List<int> selectedTranslationIds;
+    if (translationIdsJson != null) {
+      try {
+        selectedTranslationIds = List<int>.unmodifiable(
+            (jsonDecode(translationIdsJson) as List).cast<int>());
+      } catch (_) {
+        selectedTranslationIds = const [20];
+      }
+    } else {
+      selectedTranslationIds = const [20];
+    }
     return SettingsState(
       darkMode: prefs.getBool('darkMode') ?? false,
       mushafVersion: prefs.getString('mushafVersion') ?? 'v1',
@@ -70,7 +78,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
   Future<void> setSelectedTranslationIds(List<int> ids) async {
     final prefs = ref.read(sharedPrefsProvider);
     await prefs.setString('selectedTranslationIds', jsonEncode(ids));
-    state = state.copyWith(selectedTranslationIds: ids);
+    state = state.copyWith(selectedTranslationIds: List<int>.unmodifiable(ids));
   }
 
   Future<void> setWordByWordEnabled(bool value) async {
