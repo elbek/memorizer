@@ -7,6 +7,8 @@ import 'package:memorizer/features/quran/page_line.dart';
 import 'package:memorizer/features/quran/quran_provider.dart';
 import 'package:memorizer/features/quran/quran_page.dart';
 import 'package:memorizer/features/quran/surah_list_screen.dart';
+import 'package:memorizer/features/quran/translation_provider.dart';
+import 'package:memorizer/features/settings/settings_provider.dart';
 import 'package:memorizer/shared/surah_data.dart';
 
 class QuranScreen extends ConsumerStatefulWidget {
@@ -101,6 +103,7 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
         const PopupMenuItem(value: 'play', child: Text('Start reciting')),
         const PopupMenuItem(value: 'repeat', child: Text('Repeat reciting')),
         const PopupMenuItem(value: 'repeatPage', child: Text('Repeat page')),
+        const PopupMenuItem(value: 'translate', child: Text('Translate')),
       ],
     ).then((value) async {
       if (value == 'play') {
@@ -111,7 +114,32 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
       } else if (value == 'repeatPage') {
         await _startAudio(page);
         ref.read(audioProvider.notifier).repeatAyah();
+      } else if (value == 'translate') {
+        _showTranslationSheet(context, ayahKey);
       }
+    });
+  }
+
+  void _showTranslationSheet(BuildContext context, String ayahKey) {
+    ref.read(translationProvider.notifier).fetchForAyah(ayahKey);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        minChildSize: 0.3,
+        maxChildSize: 0.85,
+        expand: false,
+        builder: (context, scrollController) => _TranslationSheet(
+          ayahKey: ayahKey,
+          scrollController: scrollController,
+        ),
+      ),
+    ).whenComplete(() {
+      ref.read(translationProvider.notifier).clear();
     });
   }
 
@@ -1144,6 +1172,172 @@ class _AyahPickerScreenState extends State<_AyahPickerScreen> {
                           ],
                         ),
                       ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TranslationSheet extends ConsumerWidget {
+  const _TranslationSheet({
+    required this.ayahKey,
+    required this.scrollController,
+  });
+  final String ayahKey;
+  final ScrollController scrollController;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final translationState = ref.watch(translationProvider);
+    final settings = ref.watch(settingsProvider);
+    final cs = Theme.of(context).colorScheme;
+
+    // Parse surah name for header
+    final parts = ayahKey.split(':');
+    final surahNum = int.tryParse(parts[0]) ?? 1;
+    final ayahNum = parts.length > 1 ? parts[1] : '1';
+    final surah = getSurah(surahNum);
+    final headerText = '${surah?.name ?? 'Surah $surahNum'}, Ayah $ayahNum';
+
+    return SafeArea(
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+              color: cs.onSurface.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(headerText,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  )),
+          const SizedBox(height: 4),
+          Expanded(
+            child: translationState.when(
+              loading: () => const Center(
+                child: SizedBox(
+                  width: 28, height: 28,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+              error: (e, _) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Text('Failed to load translation',
+                      style: TextStyle(color: cs.error)),
+                ),
+              ),
+              data: (data) {
+                if (data == null) {
+                  return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+                }
+                return ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  children: [
+                    // Word-by-word section
+                    if (settings.wordByWordEnabled && data.words.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8, top: 4),
+                        child: Text('Word by Word',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                              color: cs.onSurface.withValues(alpha: 0.45),
+                            )),
+                      ),
+                      SizedBox(
+                        height: 88,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          reverse: true, // RTL
+                          itemCount: data.words.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (_, i) {
+                            final w = data.words[i];
+                            return Container(
+                              constraints: const BoxConstraints(minWidth: 64),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: cs.onSurface.withValues(alpha: 0.04),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: cs.outline.withValues(alpha: 0.1)),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(w.arabic,
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w500,
+                                        color: cs.onSurface,
+                                      ),
+                                      textDirection: TextDirection.rtl),
+                                  const SizedBox(height: 4),
+                                  Text(w.translation,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: cs.onSurface.withValues(alpha: 0.7),
+                                      ),
+                                      textAlign: TextAlign.center),
+                                  if (w.transliteration.isNotEmpty)
+                                    Text(w.transliteration,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontStyle: FontStyle.italic,
+                                          color: cs.onSurface.withValues(alpha: 0.4),
+                                        ),
+                                        textAlign: TextAlign.center),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Full translations
+                    for (final t in data.translations) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: cs.onSurface.withValues(alpha: 0.03),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: cs.outline.withValues(alpha: 0.08)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(t.resourceName,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: cs.primary,
+                                )),
+                            const SizedBox(height: 6),
+                            Text(t.text,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  height: 1.5,
+                                  color: cs.onSurface,
+                                )),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                   ],
                 );
               },
