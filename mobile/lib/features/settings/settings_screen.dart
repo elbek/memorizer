@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:memorizer/features/auth/auth_provider.dart';
+import 'package:memorizer/features/quran/translation_provider.dart';
 import 'settings_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -105,6 +106,55 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
+          // Translation section
+          _SectionHeader(title: 'Translation'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: cs.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.translate_rounded, size: 20, color: cs.primary),
+                  ),
+                  title: const Text('Translations'),
+                  subtitle: Text(
+                    _translationSummary(settings.selectedTranslationIds),
+                    style: TextStyle(
+                        color: cs.onSurface.withValues(alpha: 0.5), fontSize: 13),
+                  ),
+                  trailing: Icon(Icons.chevron_right_rounded,
+                      color: cs.onSurface.withValues(alpha: 0.3)),
+                  onTap: () => _showTranslationPicker(context, ref, settings.selectedTranslationIds),
+                ),
+                SwitchListTile(
+                  title: const Text('Word-by-Word'),
+                  subtitle: Text(
+                    'English word-by-word translation',
+                    style: TextStyle(
+                        color: cs.onSurface.withValues(alpha: 0.5), fontSize: 13),
+                  ),
+                  secondary: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: cs.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.text_fields_rounded, size: 20, color: cs.primary),
+                  ),
+                  value: settings.wordByWordEnabled,
+                  onChanged: (v) =>
+                      ref.read(settingsProvider.notifier).setWordByWordEnabled(v),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           // Account section
           _SectionHeader(title: 'Account'),
           Card(
@@ -131,6 +181,34 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  String _translationSummary(List<int> ids) {
+    if (ids.isEmpty) return 'None selected';
+    const knownNames = {
+      20: 'Saheeh International',
+      85: 'Abdel Haleem',
+      84: 'Mufti Taqi Usmani',
+      95: 'Maududi',
+      19: 'Pickthall',
+      22: 'Yusuf Ali',
+      203: 'Al-Hilali & Khan',
+      149: 'Bridges',
+    };
+    final firstName = knownNames[ids.first];
+    if (ids.length == 1) return firstName ?? 'Translation #${ids.first}';
+    return '${firstName ?? 'Translation #${ids.first}'} +${ids.length - 1} more';
+  }
+
+  void _showTranslationPicker(BuildContext context, WidgetRef ref, List<int> currentIds) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => _TranslationPickerScreen(
+        selectedIds: currentIds,
+        onChanged: (ids) {
+          ref.read(settingsProvider.notifier).setSelectedTranslationIds(ids);
+        },
+      ),
+    ));
   }
 
   String _mushafLabel(String v) => switch (v) {
@@ -336,6 +414,169 @@ class _SectionHeader extends StatelessWidget {
           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
         ),
       ),
+    );
+  }
+}
+
+class _TranslationPickerScreen extends ConsumerStatefulWidget {
+  const _TranslationPickerScreen({
+    required this.selectedIds,
+    required this.onChanged,
+  });
+  final List<int> selectedIds;
+  final ValueChanged<List<int>> onChanged;
+
+  @override
+  ConsumerState<_TranslationPickerScreen> createState() =>
+      _TranslationPickerScreenState();
+}
+
+class _TranslationPickerScreenState
+    extends ConsumerState<_TranslationPickerScreen> {
+  late Set<int> _selected;
+  List<TranslationResource>? _translations;
+  bool _loading = true;
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = {...widget.selectedIds};
+    _loadTranslations();
+  }
+
+  Future<void> _loadTranslations() async {
+    try {
+      final list = await ref
+          .read(translationProvider.notifier)
+          .fetchAvailableTranslations();
+      if (mounted) setState(() { _translations = list; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Map<String, List<TranslationResource>> get _grouped {
+    if (_translations == null) return {};
+    var list = _translations!;
+    if (_query.isNotEmpty) {
+      final q = _query.toLowerCase();
+      list = list.where((t) =>
+          t.name.toLowerCase().contains(q) ||
+          t.authorName.toLowerCase().contains(q) ||
+          t.languageName.toLowerCase().contains(q)).toList();
+    }
+    final map = <String, List<TranslationResource>>{};
+    for (final t in list) {
+      final lang = t.languageName.isNotEmpty
+          ? '${t.languageName[0].toUpperCase()}${t.languageName.substring(1)}'
+          : 'Other';
+      (map[lang] ??= []).add(t);
+    }
+    return map;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final grouped = _grouped;
+    final sortedLangs = grouped.keys.toList()
+      ..sort((a, b) {
+        if (a == 'English') return -1;
+        if (b == 'English') return 1;
+        return a.compareTo(b);
+      });
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Translations'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              widget.onChanged(_selected.toList());
+              Navigator.pop(context);
+            },
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: TextField(
+                    autofocus: false,
+                    decoration: InputDecoration(
+                      hintText: 'Search translations...',
+                      prefixIcon: Icon(Icons.search_rounded,
+                          size: 20,
+                          color: cs.onSurface.withValues(alpha: 0.4)),
+                      filled: true,
+                      fillColor: cs.onSurface.withValues(alpha: 0.05),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding:
+                          const EdgeInsets.symmetric(vertical: 10),
+                      isDense: true,
+                    ),
+                    onChanged: (v) => setState(() => _query = v),
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      for (final lang in sortedLangs) ...[
+                        Padding(
+                          padding:
+                              const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                          child: Text(
+                            lang.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.8,
+                              color: cs.onSurface
+                                  .withValues(alpha: 0.45),
+                            ),
+                          ),
+                        ),
+                        for (final t in grouped[lang]!)
+                          CheckboxListTile(
+                            value: _selected.contains(t.id),
+                            onChanged: (v) {
+                              setState(() {
+                                if (v == true) {
+                                  _selected.add(t.id);
+                                } else {
+                                  _selected.remove(t.id);
+                                }
+                              });
+                            },
+                            title: Text(t.name,
+                                style: const TextStyle(fontSize: 14)),
+                            subtitle: t.authorName.isNotEmpty
+                                ? Text(t.authorName,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: cs.onSurface
+                                          .withValues(alpha: 0.5),
+                                    ))
+                                : null,
+                            dense: true,
+                            controlAffinity:
+                                ListTileControlAffinity.leading,
+                          ),
+                      ],
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
