@@ -115,6 +115,7 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
         await _startAudio(page);
         ref.read(audioProvider.notifier).repeatAyah();
       } else if (value == 'translate') {
+        if (!mounted) return;
         _showTranslationSheet(context, ayahKey);
       }
     });
@@ -1238,7 +1239,14 @@ class _TranslationSheet extends ConsumerWidget {
               ),
               data: (data) {
                 if (data == null) {
-                  return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text('No translations selected.\nConfigure in Settings.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: cs.onSurface.withValues(alpha: 0.5))),
+                    ),
+                  );
                 }
                 return ListView(
                   controller: scrollController,
@@ -1257,16 +1265,16 @@ class _TranslationSheet extends ConsumerWidget {
                             )),
                       ),
                       SizedBox(
-                        height: 88,
+                        height: 96,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           reverse: true, // RTL
                           itemCount: data.words.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          separatorBuilder: (_, _) => const SizedBox(width: 8),
                           itemBuilder: (_, i) {
                             final w = data.words[i];
                             return Container(
-                              constraints: const BoxConstraints(minWidth: 64),
+                              constraints: const BoxConstraints(minWidth: 64, maxWidth: 140),
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                               decoration: BoxDecoration(
                                 color: cs.onSurface.withValues(alpha: 0.04),
@@ -1285,6 +1293,8 @@ class _TranslationSheet extends ConsumerWidget {
                                       textDirection: TextDirection.rtl),
                                   const SizedBox(height: 4),
                                   Text(w.translation,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: cs.onSurface.withValues(alpha: 0.7),
@@ -1292,6 +1302,8 @@ class _TranslationSheet extends ConsumerWidget {
                                       textAlign: TextAlign.center),
                                   if (w.transliteration.isNotEmpty)
                                     Text(w.transliteration,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontStyle: FontStyle.italic,
