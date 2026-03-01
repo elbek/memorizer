@@ -1,16 +1,34 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsState {
-  const SettingsState({this.darkMode = false, this.mushafVersion = 'v1', this.reciterId = 7});
+  const SettingsState({
+    this.darkMode = false,
+    this.mushafVersion = 'v1',
+    this.reciterId = 7,
+    this.selectedTranslationIds = const [20],
+    this.wordByWordEnabled = true,
+  });
   final bool darkMode;
   final String mushafVersion;
   final int reciterId;
-  SettingsState copyWith({bool? darkMode, String? mushafVersion, int? reciterId}) =>
+  final List<int> selectedTranslationIds;
+  final bool wordByWordEnabled;
+  SettingsState copyWith({
+    bool? darkMode,
+    String? mushafVersion,
+    int? reciterId,
+    List<int>? selectedTranslationIds,
+    bool? wordByWordEnabled,
+  }) =>
       SettingsState(
         darkMode: darkMode ?? this.darkMode,
         mushafVersion: mushafVersion ?? this.mushafVersion,
         reciterId: reciterId ?? this.reciterId,
+        selectedTranslationIds: selectedTranslationIds ?? this.selectedTranslationIds,
+        wordByWordEnabled: wordByWordEnabled ?? this.wordByWordEnabled,
       );
 }
 
@@ -18,10 +36,16 @@ class SettingsNotifier extends Notifier<SettingsState> {
   @override
   SettingsState build() {
     final prefs = ref.watch(sharedPrefsProvider);
+    final translationIdsJson = prefs.getString('selectedTranslationIds');
+    final selectedTranslationIds = translationIdsJson != null
+        ? List<int>.from(jsonDecode(translationIdsJson) as List)
+        : const [20];
     return SettingsState(
       darkMode: prefs.getBool('darkMode') ?? false,
       mushafVersion: prefs.getString('mushafVersion') ?? 'v1',
       reciterId: prefs.getInt('reciterId') ?? 7,
+      selectedTranslationIds: selectedTranslationIds,
+      wordByWordEnabled: prefs.getBool('wordByWordEnabled') ?? true,
     );
   }
 
@@ -41,6 +65,18 @@ class SettingsNotifier extends Notifier<SettingsState> {
     final prefs = ref.read(sharedPrefsProvider);
     await prefs.setInt('reciterId', id);
     state = state.copyWith(reciterId: id);
+  }
+
+  Future<void> setSelectedTranslationIds(List<int> ids) async {
+    final prefs = ref.read(sharedPrefsProvider);
+    await prefs.setString('selectedTranslationIds', jsonEncode(ids));
+    state = state.copyWith(selectedTranslationIds: ids);
+  }
+
+  Future<void> setWordByWordEnabled(bool value) async {
+    final prefs = ref.read(sharedPrefsProvider);
+    await prefs.setBool('wordByWordEnabled', value);
+    state = state.copyWith(wordByWordEnabled: value);
   }
 }
 

@@ -52,5 +52,56 @@ void main() {
       expect(prefs.getString('mushafVersion'), 'v4');
       container.dispose();
     });
+
+    test('loads default translation settings', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      final container = ProviderContainer(overrides: [sharedPrefsProvider.overrideWithValue(prefs)]);
+      final state = container.read(settingsProvider);
+
+      expect(state.selectedTranslationIds, [20]);
+      expect(state.wordByWordEnabled, true);
+      container.dispose();
+    });
+
+    test('loads saved translation settings', () async {
+      SharedPreferences.setMockInitialValues({
+        'selectedTranslationIds': '[20,85]',
+        'wordByWordEnabled': false,
+      });
+      final prefs = await SharedPreferences.getInstance();
+
+      final container = ProviderContainer(overrides: [sharedPrefsProvider.overrideWithValue(prefs)]);
+      final state = container.read(settingsProvider);
+
+      expect(state.selectedTranslationIds, [20, 85]);
+      expect(state.wordByWordEnabled, false);
+      container.dispose();
+    });
+
+    test('setSelectedTranslationIds persists and updates state', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      final container = ProviderContainer(overrides: [sharedPrefsProvider.overrideWithValue(prefs)]);
+      await container.read(settingsProvider.notifier).setSelectedTranslationIds([20, 85]);
+
+      expect(container.read(settingsProvider).selectedTranslationIds, [20, 85]);
+      expect(prefs.getString('selectedTranslationIds'), '[20,85]');
+      container.dispose();
+    });
+
+    test('setWordByWordEnabled persists and updates state', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      final container = ProviderContainer(overrides: [sharedPrefsProvider.overrideWithValue(prefs)]);
+      await container.read(settingsProvider.notifier).setWordByWordEnabled(false);
+
+      expect(container.read(settingsProvider).wordByWordEnabled, false);
+      expect(prefs.getBool('wordByWordEnabled'), false);
+      container.dispose();
+    });
   });
 }
