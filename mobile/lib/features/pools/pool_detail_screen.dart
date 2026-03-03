@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:memorizer/features/pools/pools_provider.dart';
 import 'package:memorizer/features/quran/surah_list_screen.dart';
+import 'package:memorizer/features/schedule/schedule_generator_sheet.dart';
 import 'package:memorizer/shared/surah_data.dart';
 
 class PoolDetailScreen extends ConsumerStatefulWidget {
@@ -45,6 +46,28 @@ class _PoolDetailScreenState extends ConsumerState<PoolDetailScreen> {
         );
       }
     }
+  }
+
+  void _showScheduleGenerator(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (ctx, scrollCtrl) => ScheduleGeneratorSheet(
+          poolId: widget.pool.id,
+          poolName: widget.pool.name,
+          scrollController: scrollCtrl,
+        ),
+      ),
+    );
   }
 
   Future<void> _showAddPicker() async {
@@ -91,6 +114,13 @@ class _PoolDetailScreenState extends ConsumerState<PoolDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.pool.name),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.event_note_rounded, size: 22),
+            tooltip: 'Generate Schedule',
+            onPressed: () => _showScheduleGenerator(context),
+          ),
+        ],
       ),
       body: Column(
         children: [
