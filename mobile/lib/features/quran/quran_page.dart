@@ -47,7 +47,6 @@ class _QuranPageViewState extends State<QuranPageView> {
   Timer? _longPressTimer;
   Offset? _pointerDownLocal;
   double _columnHeight = 1;
-  double _columnWidth = 1;
 
   @override
   void dispose() {
@@ -117,7 +116,7 @@ class _QuranPageViewState extends State<QuranPageView> {
     final baseStyle = TextStyle(
       fontFamily: fontFamily,
       fontSize: fontSize,
-      height: 1.6,
+      height: 1.0,
       color: widget.isColorFont ? null : textColor,
     );
 
@@ -173,18 +172,6 @@ class _QuranPageViewState extends State<QuranPageView> {
     return null;
   }
 
-  String? _ayahKeyAtPosition(Offset local) {
-    final idx = _lineIndexAtY(local.dy);
-    final line = widget.lines![idx];
-    if (line is! TextLine || line.words.isEmpty) {
-      return _ayahKeyAtLineIndex(idx);
-    }
-    final frac = 1.0 - (local.dx / _columnWidth);
-    final wordIdx =
-        (frac * line.words.length).floor().clamp(0, line.words.length - 1);
-    return line.words[wordIdx].ayahKey;
-  }
-
   Set<String> _ayahKeysBetweenLines(int a, int b) {
     final lo = a < b ? a : b;
     final hi = a > b ? a : b;
@@ -204,7 +191,7 @@ class _QuranPageViewState extends State<QuranPageView> {
     _pointerDownLocal = event.localPosition;
     _longPressTimer?.cancel();
 
-    if (widget.onRangeSelected == null) return;
+    if (widget.onRangeSelected == null && widget.onAyahTap == null) return;
 
     _longPressTimer = Timer(_longPressDuration, () {
       if (!mounted) return;
@@ -226,6 +213,7 @@ class _QuranPageViewState extends State<QuranPageView> {
         final dx = (event.localPosition.dx - _pointerDownLocal!.dx).abs();
         if (dx > 18) {
           _longPressTimer?.cancel();
+          _pointerDownLocal = null;
         }
       }
       return;
@@ -246,6 +234,7 @@ class _QuranPageViewState extends State<QuranPageView> {
       final startKey = _dragStartKey;
       _isDragging = false;
       _dragStartKey = null;
+      final startIdx = _dragStartLineIdx;
       _dragStartLineIdx = -1;
       if (mounted) {
         setState(() {
@@ -253,18 +242,17 @@ class _QuranPageViewState extends State<QuranPageView> {
         });
       }
       if (startKey != null && endKey != null) {
-        widget.onRangeSelected?.call(startKey, endKey, event.position);
+        if (idx == startIdx) {
+          // Long-press without drag → open ayah menu
+          widget.onAyahTap?.call(startKey, event.position);
+        } else {
+          widget.onRangeSelected?.call(startKey, endKey, event.position);
+        }
       }
       return;
     }
 
-    if (_pointerDownLocal != null) {
-      final key = _ayahKeyAtPosition(event.localPosition);
-      if (key != null) {
-        widget.onAyahTap?.call(key, event.position);
-      }
-    }
-
+    // Single tap — no action (menu only on long-press)
     _pointerDownLocal = null;
   }
 
@@ -290,19 +278,35 @@ class _QuranPageViewState extends State<QuranPageView> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final lineCount = widget.lines!.length;
-        final availableHeight = constraints.maxHeight - 28;
-        final fontSize =
-            (availableHeight / (lineCount * 1.8)).clamp(16.0, 32.0);
-        _columnHeight = constraints.maxHeight - 23;
-        _columnWidth = constraints.maxWidth - 36;
+        // Count header/bismillah lines that use fixed height
+        var fixedHeight = 0.0;
+        var textLineCount = 0;
+        for (final line in widget.lines!) {
+          if (line is HeaderLine) {
+            fixedHeight += 46;
+          } else if (line is BismillahLine) {
+            fixedHeight += 30;
+          } else {
+            textLineCount++;
+          }
+        }
+        final padV = 4.0;
+        final padH = 8.0;
+        final marginV = 2.0;
+        final availableHeight = constraints.maxHeight - (padV + marginV) * 2;
+        final textHeight = availableHeight - fixedHeight;
+        final fontSize = textLineCount > 0
+            ? (textHeight / (textLineCount * 1.12)).clamp(16.0, 100.0)
+            : 24.0;
+        _columnHeight = constraints.maxHeight - (padV + marginV) * 2;
+
 
         return Container(
-          margin: const EdgeInsets.fromLTRB(10, 4, 10, 4),
+          margin: EdgeInsets.fromLTRB(6, marginV, 6, marginV),
           child: CustomPaint(
             painter: _OrnamentBorderPainter(color: borderColor),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
               child: Listener(
                 behavior: HitTestBehavior.opaque,
                 onPointerDown: _onPointerDown,
@@ -310,7 +314,7 @@ class _QuranPageViewState extends State<QuranPageView> {
                 onPointerUp: _onPointerUp,
                 onPointerCancel: _onPointerCancel,
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     for (final line in widget.lines!)
                       switch (line) {
@@ -322,7 +326,7 @@ class _QuranPageViewState extends State<QuranPageView> {
                             textDirection: TextDirection.rtl,
                             style: TextStyle(
                               fontSize: fontSize * 0.85,
-                              height: 1.6,
+                              height: 1.0,
                               color: textColor,
                             ),
                           ),
@@ -342,7 +346,7 @@ class _QuranPageViewState extends State<QuranPageView> {
                                     style: TextStyle(
                                       fontFamily: fontFamily,
                                       fontSize: fontSize,
-                                      height: 1.6,
+                                      height: 1.0,
                                       color: widget.isColorFont ? null : textColor,
                                     ),
                                   ),
@@ -357,7 +361,7 @@ class _QuranPageViewState extends State<QuranPageView> {
                                   style: TextStyle(
                                     fontFamily: fontFamily,
                                     fontSize: fontSize,
-                                    height: 1.6,
+                                    height: 1.0,
                                     color: widget.isColorFont ? null : textColor,
                                   ),
                                 ),

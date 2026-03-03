@@ -28,6 +28,8 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
   late AudioNotifier _audioNotifier;
   final _focusNode = FocusNode();
   bool _readMode = false;
+  bool _readModeOverlayVisible = false;
+  Timer? _readModeOverlayTimer;
   bool _controlsVisible = true;
   Timer? _hideTimer;
   String? _selectedAyahKey;
@@ -49,6 +51,7 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
   @override
   void dispose() {
     _hideTimer?.cancel();
+    _readModeOverlayTimer?.cancel();
     _audioNotifier.onPageComplete = null;
     Future(_audioNotifier.stop);
     _controller.dispose();
@@ -66,6 +69,16 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
   void _showControls() {
     if (!_controlsVisible) setState(() => _controlsVisible = true);
     _startHideTimer();
+  }
+
+  void _toggleReadModeOverlay() {
+    _readModeOverlayTimer?.cancel();
+    setState(() => _readModeOverlayVisible = !_readModeOverlayVisible);
+    if (_readModeOverlayVisible) {
+      _readModeOverlayTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) setState(() => _readModeOverlayVisible = false);
+      });
+    }
   }
 
   void _goToPage(int page) {
@@ -113,7 +126,7 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
   }
 
   void _showAyahMenu(BuildContext context, Offset position, int page, String ayahKey) {
-    if (_readMode) setState(() { _readMode = false; });
+    if (_readMode) setState(() { _readMode = false; _readModeOverlayVisible = false; });
     setState(() => _selectedAyahKey = ayahKey);
 
     final parts = ayahKey.split(':');
@@ -154,6 +167,12 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
                   onTap: () => Navigator.pop(ctx, 'play'),
                 ),
                 _AyahAction(
+                  icon: Icons.queue_music_rounded,
+                  label: 'Recite surah',
+                  subtitle: 'Play ${surah?.name ?? 'surah'} from beginning',
+                  onTap: () => Navigator.pop(ctx, 'playSurah'),
+                ),
+                _AyahAction(
                   icon: Icons.repeat_rounded,
                   label: 'Repeat ayah',
                   subtitle: 'Loop this ayah',
@@ -182,6 +201,12 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
       if (value == null) return;
       if (value == 'play') {
         _startAudio(page, fromAyahKey: ayahKey);
+      } else if (value == 'playSurah') {
+        final surahStartPage = startPageForSurah(surahNum);
+        _goToPage(surahStartPage);
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) _startAudio(surahStartPage);
+        });
       } else if (value == 'repeat') {
         await _startAudio(page, fromAyahKey: ayahKey);
         ref.read(audioProvider.notifier).repeatAyah();
@@ -219,7 +244,7 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
   }
 
   void _showRangeMenu(BuildContext context, Offset position, int page, String startKey, String endKey) {
-    if (_readMode) setState(() => _readMode = false);
+    if (_readMode) setState(() { _readMode = false; _readModeOverlayVisible = false; });
     showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -487,7 +512,7 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
         body: GestureDetector(
           onTap: () {
             if (_readMode) {
-              setState(() => _readMode = false);
+              _toggleReadModeOverlay();
             } else if (audioState.isActive) {
               _showControls();
             }
@@ -497,6 +522,7 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
               PageView.builder(
                 controller: _controller,
                 reverse: true,
+                physics: const _QuranPagePhysics(),
                 itemCount: state.totalPages,
                 onPageChanged: (index) {
                   final newPage = index + 1;
@@ -698,8 +724,65 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
                     ),
                   ),
                 ),
-              // Page number overlay in read mode
-              if (_readMode && !audioState.isActive)
+              // Read mode overlay — tap to show, auto-hides after 3s
+              if (_readMode)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: AnimatedOpacity(
+                    opacity: _readModeOverlayVisible ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: IgnorePointer(
+                      ignoring: !_readModeOverlayVisible,
+                      child: SafeArea(
+                        bottom: false,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: cs.surface.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: cs.outline.withValues(alpha: 0.1)),
+                          ),
+                          child: Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                    Icons.fullscreen_exit_rounded,
+                                    size: 22),
+                                tooltip: 'Exit read mode',
+                                onPressed: () {
+                                  _readModeOverlayTimer?.cancel();
+                                  setState(() {
+                                    _readMode = false;
+                                    _readModeOverlayVisible = false;
+                                  });
+                                },
+                              ),
+                              const Spacer(),
+                              Text(
+                                '${state.currentPage}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: cs.onSurface.withValues(alpha: 0.5),
+                                ),
+                              ),
+                              const Spacer(),
+                              const SizedBox(width: 48),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              // Page number (always visible in read mode when overlay hidden)
+              if (_readMode && !_readModeOverlayVisible && !audioState.isActive)
                 Positioned(
                   bottom: 8,
                   left: 0,
@@ -981,6 +1064,56 @@ class _SurahSheetContentState extends State<_SurahSheetContent> {
         ),
       ],
     );
+  }
+}
+
+class _QuranPagePhysics extends PageScrollPhysics {
+  const _QuranPagePhysics({super.parent});
+
+  @override
+  _QuranPagePhysics applyTo(ScrollPhysics? ancestor) {
+    return _QuranPagePhysics(parent: buildParent(ancestor));
+  }
+
+  // Snappier spring (lower mass = faster snap).
+  @override
+  SpringDescription get spring =>
+      const SpringDescription(mass: 80, stiffness: 100, damping: 1);
+
+  @override
+  Simulation? createBallisticSimulation(
+      ScrollMetrics position, double velocity) {
+    // Let parent handle boundary overscroll.
+    if ((velocity <= 0.0 && position.pixels <= position.minScrollExtent) ||
+        (velocity >= 0.0 && position.pixels >= position.maxScrollExtent)) {
+      return super.createBallisticSimulation(position, velocity);
+    }
+
+    final tolerance = toleranceFor(position);
+    final double page = position.pixels / position.viewportDimension;
+    double targetPage;
+
+    if (velocity.abs() > tolerance.velocity) {
+      // Any fling → go to the page in that direction.
+      targetPage =
+          velocity > 0 ? page.ceilToDouble() : page.floorToDouble();
+    } else {
+      // Slow drag → snap if moved ≥20% away from nearest page (default is 50%).
+      final nearest = page.roundToDouble();
+      final moved = (page - nearest).abs();
+      if (moved >= 0.2) {
+        targetPage =
+            page > nearest ? page.ceilToDouble() : page.floorToDouble();
+      } else {
+        targetPage = nearest;
+      }
+    }
+
+    final target = targetPage * position.viewportDimension;
+    if (target == position.pixels) return null;
+
+    return ScrollSpringSimulation(spring, position.pixels, target, velocity,
+        tolerance: tolerance);
   }
 }
 
