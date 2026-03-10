@@ -1710,10 +1710,12 @@
   function updateDailyEstimate() {
     const days = parseInt(document.getElementById('schedule-days').value) || 0;
     const el = document.getElementById('daily-estimate');
+    const surahs = state.poolSurahMap[state.selectedPoolId] || [];
     const totalPages = getPoolTotalPages();
     if (days > 0 && totalPages > 0) {
       const perDay = Math.round(totalPages / days * 10) / 10;
-      el.textContent = `${totalPages} total pages \u00B7 ~${perDay} pages/day`;
+      const loadColor = perDay <= 2 ? 'text-green-600' : perDay <= 5 ? 'text-yellow-600' : 'text-red-500';
+      el.innerHTML = `${surahs.length} surahs · ${totalPages} pages · <span class="font-bold ${loadColor}">~${perDay} pg/day</span>`;
       el.classList.remove('hidden');
     } else {
       el.classList.add('hidden');
