@@ -2276,10 +2276,50 @@
     }
 
     const totalPages = Math.round(items.reduce((s, it) => s + (it.end_page - it.start_page), 0) * 10) / 10;
+    const displayItems = items.map(it => ({ ...it, _status: (it.status === 'pending' && isPast) ? 'missed' : it.status }));
+    const doneCount = displayItems.filter(it => it._status === 'done').length;
+    const partialCount = displayItems.filter(it => it._status === 'partial').length;
+    const missedCount = displayItems.filter(it => it._status === 'missed').length;
+    const pendingCount = displayItems.filter(it => it._status === 'pending').length;
+    const qualItems = displayItems.filter(it => it.quality != null);
+    const avgQuality = qualItems.length > 0 ? Math.round(qualItems.reduce((s, it) => s + it.quality, 0) / qualItems.length * 10) / 10 : null;
 
     detail.innerHTML = `
-      <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">${formattedDate}</h4>
-      <p class="text-xs text-primary-600 dark:text-primary-400 mb-2">${totalPages} pages total</p>
+      <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">${formattedDate}</h4>
+      <div class="flex flex-wrap gap-2 mb-3">
+        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-[11px]">
+          <span class="text-gray-400">Surahs</span>
+          <span class="font-semibold text-gray-700 dark:text-gray-200">${items.length}</span>
+        </span>
+        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-[11px]">
+          <span class="text-gray-400">Pages</span>
+          <span class="font-semibold text-gray-700 dark:text-gray-200">${totalPages}</span>
+        </span>
+        ${doneCount > 0 ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-50 dark:bg-green-900/20 text-[11px]">
+          <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+          <span class="font-semibold text-green-700 dark:text-green-400">${doneCount}</span>
+          <span class="text-green-600/60 dark:text-green-400/60">done</span>
+        </span>` : ''}
+        ${partialCount > 0 ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-[11px]">
+          <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+          <span class="font-semibold text-yellow-700 dark:text-yellow-400">${partialCount}</span>
+          <span class="text-yellow-600/60 dark:text-yellow-400/60">partial</span>
+        </span>` : ''}
+        ${missedCount > 0 ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 dark:bg-red-900/20 text-[11px]">
+          <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+          <span class="font-semibold text-red-500 dark:text-red-400">${missedCount}</span>
+          <span class="text-red-500/60 dark:text-red-400/60">missed</span>
+        </span>` : ''}
+        ${pendingCount > 0 ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-[11px]">
+          <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
+          <span class="font-semibold text-gray-500">${pendingCount}</span>
+          <span class="text-gray-400">pending</span>
+        </span>` : ''}
+        ${avgQuality != null ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-[11px]">
+          <span class="text-gray-400">Avg</span>
+          <span class="font-bold ${avgQuality >= 15 ? 'text-green-600' : avgQuality >= 10 ? 'text-yellow-600' : 'text-red-500'}">${avgQuality}/20</span>
+        </span>` : ''}
+      </div>
       <div class="space-y-2">
         ${items.map(item => {
           const surah = getSurah(item.surah_number);
