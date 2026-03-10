@@ -1768,11 +1768,12 @@
       listEl.innerHTML = '';
 
       for (const day of data.days) {
+        const dayPages = Math.round(day.chunks.reduce((s, c) => s + c.pages, 0) * 10) / 10;
         const dayEl = document.createElement('div');
-        dayEl.className = 'bg-gray-50 rounded-lg p-2.5';
+        dayEl.className = 'bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2.5';
         dayEl.innerHTML = `
           <div class="flex items-center justify-between mb-1">
-            <span class="text-xs font-semibold text-gray-700">Day ${day.day_number}</span>
+            <span class="text-xs font-semibold text-gray-700 dark:text-gray-200">Day ${day.day_number} <span class="font-normal text-gray-400">· ${dayPages} pg</span></span>
             <span class="text-xs text-gray-400">${day.date}</span>
           </div>
           <div class="space-y-0.5">
