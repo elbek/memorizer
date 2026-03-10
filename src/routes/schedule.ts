@@ -299,7 +299,8 @@ schedule.get("/:poolId", async (c) => {
     return c.json({ error: "Pool not found" }, 404);
   }
 
-  const sched = await c.env.DB.prepare(
+  // Try active first, then most recent completed
+  let sched = await c.env.DB.prepare(
     "SELECT * FROM schedules WHERE pool_id = ? AND status = 'active' ORDER BY created_at DESC LIMIT 1"
   )
     .bind(poolId)
@@ -313,7 +314,15 @@ schedule.get("/:poolId", async (c) => {
     }>();
 
   if (!sched) {
-    return c.json({ error: "No active schedule found" }, 404);
+    sched = await c.env.DB.prepare(
+      "SELECT * FROM schedules WHERE pool_id = ? ORDER BY created_at DESC LIMIT 1"
+    )
+      .bind(poolId)
+      .first();
+  }
+
+  if (!sched) {
+    return c.json({ error: "No schedule found" }, 404);
   }
 
   const itemsResult = await c.env.DB.prepare(

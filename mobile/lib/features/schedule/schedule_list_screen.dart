@@ -183,15 +183,7 @@ class _ScheduleCard extends ConsumerWidget {
                         onPressed: () => _confirmDelete(context, ref),
                       ),
                   ],
-                  // Completed schedules can always be deleted
-                  if (isCompleted)
-                    IconButton(
-                      icon: Icon(Icons.delete_outline_rounded,
-                          size: 20,
-                          color: cs.error.withValues(alpha: 0.7)),
-                      tooltip: 'Delete schedule',
-                      onPressed: () => _confirmDelete(context, ref),
-                    ),
+                  // Completed schedules are preserved (no delete)
                 ],
               ),
             ],
