@@ -477,6 +477,9 @@ schedule.delete("/:scheduleId/delete", async (c) => {
   }
 
   await c.env.DB.batch([
+    c.env.DB.prepare(
+      "DELETE FROM recitation_log WHERE schedule_item_id IN (SELECT id FROM schedule_items WHERE schedule_id = ?)"
+    ).bind(scheduleId),
     c.env.DB.prepare("DELETE FROM schedule_items WHERE schedule_id = ?").bind(scheduleId),
     c.env.DB.prepare("DELETE FROM schedules WHERE id = ?").bind(scheduleId),
   ]);

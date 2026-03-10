@@ -1723,10 +1723,8 @@
   function openScheduleModal() {
     if ((state.poolSurahMap[state.selectedPoolId] || []).length === 0) return;
 
-    // Default start date = tomorrow
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    document.getElementById('schedule-start').value = formatDate(tomorrow);
+    // Default start date = today
+    document.getElementById('schedule-start').value = formatDate(new Date());
     document.getElementById('schedule-days').value = '10';
     document.getElementById('schedule-range').value = '10';
     document.getElementById('schedule-shuffle').checked = false;
