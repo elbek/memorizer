@@ -501,6 +501,15 @@
             </div>
           </div>
 
+          <!-- Filter controls -->
+          <div class="flex flex-wrap gap-2 mb-2">
+            <button onclick="filterReports('all')" class="report-filter-btn px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap" data-filter="all">All</button>
+            <button onclick="filterReports('weak')" class="report-filter-btn px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap" data-filter="weak">Weak (&lt;10)</button>
+            <button onclick="filterReports('average')" class="report-filter-btn px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap" data-filter="average">Average (10-14)</button>
+            <button onclick="filterReports('strong')" class="report-filter-btn px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap" data-filter="strong">Strong (15+)</button>
+            <button onclick="filterReports('least')" class="report-filter-btn px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap" data-filter="least">Least Recited</button>
+          </div>
+
           <!-- Sort controls -->
           <div class="flex gap-2 mb-3 overflow-x-auto">
             <button onclick="sortReports('surah')" class="sort-btn px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition whitespace-nowrap" data-sort="surah">Surah #</button>
@@ -950,6 +959,7 @@
     reportData: [],
     reportSort: 'surah',
     reportSortAsc: true,
+    reportFilter: 'all', // all, weak, average, strong, least
     currentDoneItemId: null,
     currentPartialItem: null,
     deletePoolId: null,
@@ -2150,6 +2160,7 @@
         const totalPages = items.reduce((s, it) => s + (it.end_page - it.start_page), 0);
         const allDone = items.every(it => it.status === 'done');
         const anyPartial = items.some(it => it.status === 'partial');
+        const anyMissed = items.some(it => it.status === 'missed');
         const allPending = items.every(it => it.status === 'pending');
 
         const now = new Date();
@@ -2159,7 +2170,7 @@
         let dotColor = 'bg-gray-300'; // upcoming
         if (allDone) dotColor = 'bg-green-500';
         else if (anyPartial) dotColor = 'bg-yellow-500';
-        else if (isPast && allPending) dotColor = 'bg-red-400';
+        else if (anyMissed || (isPast && allPending)) dotColor = 'bg-red-400';
 
         const dot = document.createElement('div');
         dot.className = `w-1.5 h-1.5 rounded-full ${dotColor} mt-0.5`;
@@ -2237,6 +2248,8 @@
             ? `<span class="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full">Done ${item.quality ? item.quality + '/20' : ''}</span>`
             : item.status === 'partial'
             ? `<span class="px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-xs rounded-full">Partial ${item.quality ? item.quality + '/20' : ''}</span>`
+            : item.status === 'missed'
+            ? `<span class="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400 text-xs rounded-full">Missed</span>`
             : `<span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs rounded-full">Pending</span>`;
 
           return `
@@ -2269,8 +2282,32 @@
     }
   }
 
+  function filterReports(filter) {
+    state.reportFilter = filter;
+    if (filter === 'least') {
+      state.reportSort = 'times';
+      state.reportSortAsc = true;
+    }
+    renderReports();
+  }
+
   function renderReports() {
-    const stats = [...state.reportData];
+    let stats = [...state.reportData];
+
+    // Apply filter
+    const f = state.reportFilter;
+    if (f === 'weak') stats = stats.filter(r => r.avg_quality < 10);
+    else if (f === 'average') stats = stats.filter(r => r.avg_quality >= 10 && r.avg_quality < 15);
+    else if (f === 'strong') stats = stats.filter(r => r.avg_quality >= 15);
+    else if (f === 'least') stats = stats.filter(r => r.times_recited <= 2);
+
+    // Highlight active filter button
+    document.querySelectorAll('.report-filter-btn').forEach(btn => {
+      const isActive = btn.dataset.filter === state.reportFilter;
+      btn.className = `report-filter-btn px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap ${
+        isActive ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+      }`;
+    });
     const list = document.getElementById('report-list');
     const empty = document.getElementById('report-empty');
     const totalEl = document.getElementById('report-total');
