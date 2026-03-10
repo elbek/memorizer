@@ -409,6 +409,12 @@ class _DayDetailSheetState extends State<_DayDetailSheet> {
   Widget _buildItemRow(ScheduleItem item, ThemeData theme, ColorScheme cs) {
     final isDone = item.status == 'done';
     final isPartial = item.status == 'partial';
+    final isMissed = item.status == 'missed';
+    // Treat pending items on past dates as missed for display
+    final isPastPending = item.status == 'pending' &&
+        DateTime.tryParse(widget.dateStr)?.isBefore(
+            DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day)) == true;
+    final showMissed = isMissed || isPastPending;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -423,7 +429,9 @@ class _DayDetailSheetState extends State<_DayDetailSheet> {
                   ? cs.primary.withValues(alpha: 0.12)
                   : isPartial
                       ? Colors.orange.withValues(alpha: 0.12)
-                      : cs.onSurface.withValues(alpha: 0.06),
+                      : showMissed
+                          ? Colors.red.withValues(alpha: 0.12)
+                          : cs.onSurface.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -431,13 +439,17 @@ class _DayDetailSheetState extends State<_DayDetailSheet> {
                   ? Icons.check_rounded
                   : isPartial
                       ? Icons.timelapse_rounded
-                      : Icons.circle_outlined,
+                      : showMissed
+                          ? Icons.close_rounded
+                          : Icons.circle_outlined,
               size: 16,
               color: isDone
                   ? cs.primary
                   : isPartial
                       ? Colors.orange
-                      : cs.onSurface.withValues(alpha: 0.4),
+                      : showMissed
+                          ? Colors.red
+                          : cs.onSurface.withValues(alpha: 0.4),
             ),
           ),
           const SizedBox(width: 10),

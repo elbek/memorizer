@@ -382,10 +382,10 @@
       <div id="screen-manage" class="screen fade-in">
         <!-- Sub-tab bar -->
         <div class="flex gap-1 pt-3 pb-2 overflow-x-auto -mx-1 px-1">
-          <button onclick="switchSubTab('pools')" class="sub-tab px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300" data-subtab="pools">Pools</button>
-          <button onclick="switchSubTab('schedules')" class="sub-tab px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600" data-subtab="schedules">Schedules</button>
+          <button onclick="switchSubTab('schedules')" class="sub-tab px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300" data-subtab="schedules">Schedules</button>
           <button onclick="switchSubTab('calendar')" class="sub-tab px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600" data-subtab="calendar">Calendar</button>
           <button onclick="switchSubTab('reports')" class="sub-tab px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600" data-subtab="reports">Reports</button>
+          <button onclick="switchSubTab('pools')" class="sub-tab px-3 py-1.5 text-xs font-medium rounded-lg transition whitespace-nowrap bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600" data-subtab="pools">Pools</button>
         </div>
 
       <!-- Sub: Pools -->
@@ -1169,7 +1169,7 @@
     if (tab === 'quran') loadQuranPage();
   }
 
-  let currentSubTab = 'pools';
+  let currentSubTab = 'schedules';
 
   function switchSubTab(sub) {
     currentSubTab = sub;
@@ -1948,15 +1948,25 @@
       openScheduleModal();
       return;
     }
-    // Let user pick a pool
-    const names = available.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
-    const choice = prompt(`Select a pool:\n${names}\n\nEnter number:`);
-    if (!choice) return;
-    const idx = parseInt(choice) - 1;
-    if (idx >= 0 && idx < available.length) {
-      state.selectedPoolId = available[idx].id;
-      openScheduleModal();
-    }
+    // Show pool picker dropdown
+    const picker = document.createElement('div');
+    picker.className = 'fixed inset-0 z-50 flex items-center justify-center';
+    picker.innerHTML = `
+      <div class="absolute inset-0 bg-black/40" onclick="this.parentElement.remove()"></div>
+      <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-4 w-72 max-w-[90vw]">
+        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">Select a pool</h3>
+        <div class="space-y-1">
+          ${available.map(p => `
+            <button onclick="state.selectedPoolId=${p.id}; this.closest('.fixed').remove(); openScheduleModal();"
+              class="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-primary-900/30 hover:text-primary-700 dark:hover:text-primary-400 transition">
+              ${escHtml(p.name)}
+            </button>
+          `).join('')}
+        </div>
+        <button onclick="this.closest('.fixed').remove()" class="w-full mt-2 py-2 text-xs text-gray-400 hover:text-gray-600 transition">Cancel</button>
+      </div>
+    `;
+    document.body.appendChild(picker);
   }
 
   // ============================================================
@@ -2227,6 +2237,13 @@
       weekday: 'long', month: 'long', day: 'numeric'
     });
 
+    // Determine if this date is in the past (user's local time)
+    const today = new Date();
+    const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const cellDate = new Date(dateStr + 'T12:00:00');
+    const cellLocal = new Date(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate());
+    const isPast = cellLocal < todayLocal;
+
     if (items.length === 0) {
       detail.innerHTML = `
         <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">${formattedDate}</h4>
@@ -2244,11 +2261,13 @@
         ${items.map(item => {
           const surah = getSurah(item.surah_number);
           const pages = Math.round((item.end_page - item.start_page) * 10) / 10;
-          const statusBadge = item.status === 'done'
+          // Show pending items on past dates as missed
+          const displayStatus = (item.status === 'pending' && isPast) ? 'missed' : item.status;
+          const statusBadge = displayStatus === 'done'
             ? `<span class="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full">Done ${item.quality ? item.quality + '/20' : ''}</span>`
-            : item.status === 'partial'
+            : displayStatus === 'partial'
             ? `<span class="px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-xs rounded-full">Partial ${item.quality ? item.quality + '/20' : ''}</span>`
-            : item.status === 'missed'
+            : displayStatus === 'missed'
             ? `<span class="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400 text-xs rounded-full">Missed</span>`
             : `<span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs rounded-full">Pending</span>`;
 
