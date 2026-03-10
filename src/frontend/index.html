@@ -65,6 +65,7 @@
     /* Transition for screens */
     .fade-in { animation: fadeIn 0.25s ease-in-out; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
     /* Modal backdrop */
     .modal-backdrop { background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); }
@@ -1948,22 +1949,44 @@
       openScheduleModal();
       return;
     }
-    // Show pool picker dropdown
+    // Show pool picker modal
     const picker = document.createElement('div');
-    picker.className = 'fixed inset-0 z-50 flex items-center justify-center';
+    picker.className = 'fixed inset-0 z-50 flex items-end sm:items-center justify-center';
+    picker.style.animation = 'fadeIn 0.15s ease-out';
     picker.innerHTML = `
-      <div class="absolute inset-0 bg-black/40" onclick="this.parentElement.remove()"></div>
-      <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-4 w-72 max-w-[90vw]">
-        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">Select a pool</h3>
-        <div class="space-y-1">
-          ${available.map(p => `
-            <button onclick="state.selectedPoolId=${p.id}; this.closest('.fixed').remove(); openScheduleModal();"
-              class="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-primary-900/30 hover:text-primary-700 dark:hover:text-primary-400 transition">
-              ${escHtml(p.name)}
-            </button>
-          `).join('')}
+      <div class="modal-backdrop absolute inset-0" onclick="this.parentElement.remove()"></div>
+      <div class="relative bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:w-80 max-w-[95vw] overflow-hidden" style="animation: slideUp 0.2s ease-out">
+        <div class="px-5 pt-5 pb-3">
+          <div class="flex items-center gap-3 mb-1">
+            <div class="w-9 h-9 rounded-xl bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">
+              <svg class="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+            </div>
+            <div>
+              <h3 class="text-base font-semibold text-gray-900 dark:text-white">New Schedule</h3>
+              <p class="text-xs text-gray-400">Choose a pool to schedule</p>
+            </div>
+          </div>
         </div>
-        <button onclick="this.closest('.fixed').remove()" class="w-full mt-2 py-2 text-xs text-gray-400 hover:text-gray-600 transition">Cancel</button>
+        <div class="px-3 pb-3">
+          ${available.map(p => {
+            const count = (state.poolSurahMap[p.id] || []).length;
+            return `
+            <button onclick="state.selectedPoolId=${p.id}; this.closest('.fixed').remove(); openScheduleModal();"
+              class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left hover:bg-gray-50 dark:hover:bg-gray-700/60 transition group">
+              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900/30 dark:to-primary-800/20 flex items-center justify-center border border-primary-200/50 dark:border-primary-700/30 group-hover:scale-105 transition">
+                <svg class="w-5 h-5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-800 dark:text-gray-200">${escHtml(p.name)}</p>
+                <p class="text-xs text-gray-400">${count} surah${count !== 1 ? 's' : ''}</p>
+              </div>
+              <svg class="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-primary-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </button>`;
+          }).join('')}
+        </div>
+        <div class="px-5 pb-5">
+          <button onclick="this.closest('.fixed').remove()" class="w-full py-2.5 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/40">Cancel</button>
+        </div>
       </div>
     `;
     document.body.appendChild(picker);
