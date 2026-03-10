@@ -559,6 +559,11 @@
               class="px-2 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 max-w-[100px]">
               <option value="">Surah</option>
             </select>
+            <button onclick="toggleTajweed()" id="quran-tajweed-btn"
+              class="px-2 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition active:scale-95"
+              title="Toggle tajweed colors">
+              <span class="font-arabic text-sm">تج</span>
+            </button>
             <button onclick="toggleFullRead()" id="quran-fullread-btn"
               class="px-2 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition active:scale-95"
               title="Full screen reading">
@@ -956,7 +961,7 @@
     calYear: new Date().getFullYear(),
     calMonth: new Date().getMonth(),
     calPoolFilter: null,   // null = all
-    calScheduleData: {},   // poolId -> { schedule, items }
+    calDays: {},   // date -> items array from /calendar endpoint
     reportData: [],
     reportSort: 'surah',
     reportSortAsc: true,
@@ -2103,19 +2108,22 @@
       } catch (e) { return; }
     }
 
-    // Load schedule data for all pools
-    state.calScheduleData = {};
-    for (const pool of state.pools) {
-      try {
-        const data = await api('GET', `/api/schedule/${pool.id}`);
-        state.calScheduleData[pool.id] = data;
-      } catch (e) {
-        // No active schedule for this pool
-      }
-    }
-
+    await loadCalendarMonth();
     renderCalPoolFilter();
     renderCalendar();
+  }
+
+  async function loadCalendarMonth() {
+    // Fetch items for the currently displayed month via the calendar endpoint
+    const from = `${state.calYear}-${String(state.calMonth + 1).padStart(2, '0')}-01`;
+    const lastDay = new Date(state.calYear, state.calMonth + 1, 0).getDate();
+    const to = `${state.calYear}-${String(state.calMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    try {
+      const data = await api('GET', `/api/schedule/calendar?from=${from}&to=${to}`);
+      state.calDays = data.days || {};
+    } catch (e) {
+      state.calDays = {};
+    }
   }
 
   function renderCalPoolFilter() {
@@ -2141,15 +2149,17 @@
     }
   }
 
-  function calPrevMonth() {
+  async function calPrevMonth() {
     state.calMonth--;
     if (state.calMonth < 0) { state.calMonth = 11; state.calYear--; }
+    await loadCalendarMonth();
     renderCalendar();
   }
 
-  function calNextMonth() {
+  async function calNextMonth() {
     state.calMonth++;
     if (state.calMonth > 11) { state.calMonth = 0; state.calYear++; }
+    await loadCalendarMonth();
     renderCalendar();
   }
 
@@ -2240,20 +2250,15 @@
   }
 
   function buildDateItemsMap() {
-    const map = {};
-    for (const pool of state.pools) {
-      if (state.calPoolFilter !== null && state.calPoolFilter !== pool.id) continue;
-      const schedData = state.calScheduleData[pool.id];
-      if (!schedData || !schedData.schedule || !schedData.items) continue;
-
-      const startDate = schedData.schedule.start_date;
-      for (const item of schedData.items) {
-        const dateStr = addDays(startDate, item.day_number - 1);
-        if (!map[dateStr]) map[dateStr] = [];
-        map[dateStr].push({ ...item, pool_name: pool.name });
-      }
+    const days = state.calDays || {};
+    if (state.calPoolFilter === null) return days;
+    // Filter by selected pool
+    const filtered = {};
+    for (const [dateStr, items] of Object.entries(days)) {
+      const poolItems = items.filter(it => it.pool_id === state.calPoolFilter);
+      if (poolItems.length > 0) filtered[dateStr] = poolItems;
     }
-    return map;
+    return filtered;
   }
 
   function showDayDetail(dateStr, items) {
@@ -2285,6 +2290,7 @@
     const partialCount = displayItems.filter(it => it._status === 'partial').length;
     const missedCount = displayItems.filter(it => it._status === 'missed').length;
     const pendingCount = displayItems.filter(it => it._status === 'pending').length;
+    const missedPages = Math.round(displayItems.filter(it => it._status === 'missed').reduce((s, it) => s + (it.end_page - it.start_page), 0) * 10) / 10;
     const qualItems = displayItems.filter(it => it.quality != null);
     const avgQuality = qualItems.length > 0 ? Math.round(qualItems.reduce((s, it) => s + it.quality, 0) / qualItems.length * 10) / 10 : null;
 
@@ -2313,6 +2319,7 @@
           <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
           <span class="font-semibold text-red-500 dark:text-red-400">${missedCount}</span>
           <span class="text-red-500/60 dark:text-red-400/60">missed</span>
+          <span class="text-red-400/50 dark:text-red-400/40">(${missedPages}p)</span>
         </span>` : ''}
         ${pendingCount > 0 ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-[11px]">
           <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
@@ -2512,6 +2519,10 @@
     v4: { label: 'Tajweed', fontPath: 'v4/colrv1', apiParam: 'v2' },
   };
   let currentMushaf = localStorage.getItem('quranMushaf') || 'v2';
+
+  // Tajweed toggle — for V2, swap to V4 color font; V4 already has tajweed; V1 not supported
+  let tajweedEnabled = localStorage.getItem('quranTajweed') === '1';
+
   // Page background
   let currentPageBg = localStorage.getItem('quranPageBg') || 'cream';
 
@@ -2579,11 +2590,14 @@
   const NO_BISMILLAH = new Set([1, 9]);
 
   async function loadQuranFont(pageNumber) {
-    const config = MUSHAF_CONFIG[currentMushaf];
-    const fontName = `p${pageNumber}-${currentMushaf}`;
+    // When tajweed is enabled on V2, use the V4 color font (same glyph codes)
+    const useTajweedFont = tajweedEnabled && currentMushaf === 'v2';
+    const fontPath = useTajweedFont ? MUSHAF_CONFIG.v4.fontPath : MUSHAF_CONFIG[currentMushaf].fontPath;
+    const fontKey = useTajweedFont ? 'v2-tj' : currentMushaf;
+    const fontName = `p${pageNumber}-${fontKey}`;
     if (loadedFonts.has(fontName)) return fontName;
     const fontFace = new FontFace(fontName,
-      `url('https://verses.quran.foundation/fonts/quran/hafs/${config.fontPath}/woff2/p${pageNumber}.woff2')`
+      `url('https://verses.quran.foundation/fonts/quran/hafs/${fontPath}/woff2/p${pageNumber}.woff2')`
     );
     fontFace.display = 'block';
     await fontFace.load();
@@ -2763,6 +2777,29 @@
     }
   }
 
+  function toggleTajweed() {
+    tajweedEnabled = !tajweedEnabled;
+    localStorage.setItem('quranTajweed', tajweedEnabled ? '1' : '0');
+    updateTajweedBtn();
+    renderQuranPage(currentQuranPage);
+  }
+
+  function updateTajweedBtn() {
+    const btn = document.getElementById('quran-tajweed-btn');
+    if (!btn) return;
+    // Tajweed toggle only works for V2 (swaps to V4 color font). V4 already has it. V1 not supported.
+    btn.style.display = currentMushaf === 'v1' || currentMushaf === 'v4' ? 'none' : '';
+    if (tajweedEnabled) {
+      btn.classList.add('bg-primary-100', 'dark:bg-primary-900/30', 'border-primary-400', 'text-primary-700');
+      btn.classList.remove('bg-white', 'dark:bg-gray-800', 'border-gray-200', 'dark:border-gray-700', 'text-gray-600', 'dark:text-gray-300');
+    } else {
+      btn.classList.remove('bg-primary-100', 'dark:bg-primary-900/30', 'border-primary-400', 'text-primary-700');
+      btn.classList.add('bg-white', 'dark:bg-gray-800', 'border-gray-200', 'dark:border-gray-700', 'text-gray-600', 'dark:text-gray-300');
+    }
+  }
+  // Initialize button state
+  updateTajweedBtn();
+
   function loadQuranPage() {
     document.getElementById('quran-page-input').value = currentQuranPage;
     renderQuranPage(currentQuranPage);
@@ -2834,6 +2871,7 @@
     currentMushaf = mushaf;
     localStorage.setItem('quranMushaf', mushaf);
     quranSurahIndex = null; // reset cached index
+    updateTajweedBtn();
     renderQuranPage(currentQuranPage);
   }
 

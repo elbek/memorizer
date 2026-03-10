@@ -289,6 +289,66 @@ schedule.get("/list", async (c) => {
 });
 
 /**
+ * GET /calendar — Get all schedule items for a date range across all pools.
+ * Query params: from=YYYY-MM-DD&to=YYYY-MM-DD
+ */
+schedule.get("/calendar", async (c) => {
+  const userId = c.get("userId");
+  const from = c.req.query("from");
+  const to = c.req.query("to");
+
+  if (!from || !to || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    return c.json({ error: "from and to query params required (YYYY-MM-DD)" }, 400);
+  }
+
+  // Find all schedule items whose computed date falls within the range
+  const result = await c.env.DB.prepare(
+    `SELECT si.id, si.schedule_id, si.day_number, si.surah_number, si.start_page, si.end_page,
+            si.status, si.quality, s.start_date, s.pool_id, p.name as pool_name
+     FROM schedule_items si
+     JOIN schedules s ON s.id = si.schedule_id
+     JOIN pools p ON p.id = s.pool_id
+     WHERE p.user_id = ?
+       AND date(s.start_date, '+' || (si.day_number - 1) || ' days') BETWEEN ? AND ?
+     ORDER BY si.day_number, si.id`
+  )
+    .bind(userId, from, to)
+    .all<{
+      id: number; schedule_id: number; day_number: number; surah_number: number;
+      start_page: number; end_page: number; status: string; quality: number | null;
+      start_date: string; pool_id: number; pool_name: string;
+    }>();
+
+  // Group by date
+  const byDate: Record<string, Array<{
+    id: number; surah_number: number; surah_name: string; arabic: string;
+    start_page: number; end_page: number; pages: number; status: string;
+    quality: number | null; pool_name: string; pool_id: number;
+  }>> = {};
+
+  for (const row of result.results) {
+    const dateStr = addDays(row.start_date, row.day_number - 1);
+    const surah = SURAHS.find((s) => s.number === row.surah_number);
+    if (!byDate[dateStr]) byDate[dateStr] = [];
+    byDate[dateStr].push({
+      id: row.id,
+      surah_number: row.surah_number,
+      surah_name: surah?.name ?? "",
+      arabic: surah?.arabic ?? "",
+      start_page: row.start_page,
+      end_page: row.end_page,
+      pages: row.end_page - row.start_page,
+      status: row.status,
+      quality: row.quality,
+      pool_name: row.pool_name,
+      pool_id: row.pool_id,
+    });
+  }
+
+  return c.json({ days: byDate });
+});
+
+/**
  * GET /:poolId — Get current active schedule for a pool
  */
 schedule.get("/:poolId", async (c) => {
