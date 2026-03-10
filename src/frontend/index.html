@@ -1876,7 +1876,9 @@
             </div>
             <span class="text-xs text-gray-500 shrink-0">${sched.items_done}/${sched.items_total} done</span>
           </div>
-          ${sched.items_partial > 0 ? `<p class="text-[10px] text-yellow-600 mt-1">${sched.items_partial} partial</p>` : ''}
+          ${sched.items_missed > 0 ? `<span class="text-[10px] text-red-500">${sched.items_missed} missed</span>` : ''}
+          ${sched.items_partial > 0 ? `<span class="text-[10px] text-yellow-600">${sched.items_partial} partial</span>` : ''}
+          <button onclick="viewScheduleHistory(${sched.id})" class="text-[10px] text-primary-500 hover:text-primary-700 underline cursor-pointer ml-auto">View History →</button>
         `;
         list.appendChild(card);
       }
@@ -1905,6 +1907,101 @@
       loadSchedules();
     } catch (e) {
       alert(e.message || 'Failed to delete schedule');
+    }
+  }
+
+  // ============================================================
+  // SCHEDULE HISTORY
+  // ============================================================
+  async function viewScheduleHistory(scheduleId) {
+    const list = document.getElementById('schedules-list');
+    list.innerHTML = '<div class="flex items-center justify-center py-10"><div class="w-6 h-6 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div></div>';
+    try {
+      const data = await api('GET', `/api/schedule/${scheduleId}/history`);
+      const { schedule: sched, items, stats } = data;
+      let statusFilter = 'all';
+      let sortBy = 'day';
+      let qualityMin = 1;
+      let qualityMax = 20;
+
+      function render() {
+        let filtered = items.filter(it => {
+          if (statusFilter !== 'all' && it.status !== statusFilter) return false;
+          if (it.quality != null && (it.quality < qualityMin || it.quality > qualityMax)) return false;
+          return true;
+        });
+        if (sortBy === 'quality_desc') filtered.sort((a, b) => ((b.quality ?? 0) - (a.quality ?? 0)));
+        else if (sortBy === 'quality_asc') filtered.sort((a, b) => ((a.quality ?? 0) - (b.quality ?? 0)));
+        else filtered.sort((a, b) => a.day_number - b.day_number);
+
+        const statusBtn = (val, label, color) => {
+          const active = statusFilter === val;
+          return `<button onclick="window._schHistFilter('${val}')" class="px-2.5 py-1 text-xs rounded-full border ${active ? `bg-${color}-100 border-${color}-400 text-${color}-700 font-semibold` : 'border-gray-200 dark:border-gray-600 text-gray-500'}">${label}</button>`;
+        };
+        const sortBtn = (val, label) => {
+          const active = sortBy === val;
+          return `<button onclick="window._schHistSort('${val}')" class="px-2.5 py-1 text-xs rounded-full border ${active ? 'bg-primary-100 border-primary-400 text-primary-700 font-semibold' : 'border-gray-200 dark:border-gray-600 text-gray-500'}">${label}</button>`;
+        };
+
+        list.innerHTML = `
+          <div class="mb-4">
+            <button onclick="loadSchedules()" class="text-sm text-primary-500 hover:text-primary-700">← Back to schedules</button>
+          </div>
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border p-4 mb-4">
+            <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-1">${escHtml(sched.pool_name)}</h3>
+            <p class="text-xs text-gray-400 mb-3">${new Date(sched.start_date + 'T12:00:00').toLocaleDateString('en-US', {month:'short',day:'numeric'})} — ${new Date(sched.end_date + 'T12:00:00').toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'})} · ${sched.total_days} days</p>
+            <div class="grid grid-cols-5 gap-2 text-center">
+              <div><p class="text-lg font-bold text-green-600">${stats.done}</p><p class="text-[10px] text-gray-400">Done</p></div>
+              <div><p class="text-lg font-bold text-yellow-600">${stats.partial}</p><p class="text-[10px] text-gray-400">Partial</p></div>
+              <div><p class="text-lg font-bold text-red-500">${stats.missed}</p><p class="text-[10px] text-gray-400">Missed</p></div>
+              <div><p class="text-lg font-bold text-gray-400">${stats.pending}</p><p class="text-[10px] text-gray-400">Pending</p></div>
+              <div><p class="text-lg font-bold text-primary-600">${stats.avg_quality || '—'}</p><p class="text-[10px] text-gray-400">Avg Qual</p></div>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-1.5 mb-2">
+            ${statusBtn('all', 'All', 'gray')}
+            ${statusBtn('done', 'Done', 'green')}
+            ${statusBtn('partial', 'Partial', 'yellow')}
+            ${statusBtn('missed', 'Missed', 'red')}
+            ${statusBtn('pending', 'Pending', 'gray')}
+          </div>
+          <div class="flex flex-wrap gap-1.5 mb-2">
+            ${sortBtn('day', 'By Day')}
+            ${sortBtn('quality_desc', 'Best First')}
+            ${sortBtn('quality_asc', 'Worst First')}
+          </div>
+          <div class="flex items-center gap-2 mb-3 text-xs text-gray-500">
+            <span>Quality:</span>
+            <input type="range" min="1" max="20" value="${qualityMin}" class="w-20" oninput="window._schHistQMin(this.value)">
+            <span>${qualityMin}</span>
+            <span>—</span>
+            <input type="range" min="1" max="20" value="${qualityMax}" class="w-20" oninput="window._schHistQMax(this.value)">
+            <span>${qualityMax}</span>
+          </div>
+          <div class="space-y-2">
+            ${filtered.length === 0 ? '<p class="text-center text-sm text-gray-400 py-4">No items match filters</p>' : filtered.map(it => {
+              const qColor = it.quality == null ? '' : it.quality >= 15 ? 'text-green-600' : it.quality >= 10 ? 'text-yellow-600' : 'text-red-500';
+              const statusColor = { done: 'bg-green-100 text-green-700', partial: 'bg-yellow-100 text-yellow-700', missed: 'bg-red-100 text-red-500', pending: 'bg-gray-100 text-gray-500' }[it.status] || 'bg-gray-100 text-gray-500';
+              return `<div class="flex items-center gap-3 bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-800 dark:text-gray-200">${escHtml(it.surah_name)} <span class="text-xs text-gray-400 font-arabic">${escHtml(it.arabic)}</span></p>
+                  <p class="text-[10px] text-gray-400">Day ${it.day_number} · ${it.date} · pp. ${it.start_page}–${it.end_page}</p>
+                </div>
+                ${it.quality != null ? `<span class="text-sm font-bold ${qColor}">${it.quality}/20</span>` : ''}
+                <span class="px-2 py-0.5 text-[10px] rounded-full ${statusColor} font-medium">${it.status}</span>
+              </div>`;
+            }).join('')}
+          </div>
+        `;
+      }
+
+      window._schHistFilter = (v) => { statusFilter = v; render(); };
+      window._schHistSort = (v) => { sortBy = v; render(); };
+      window._schHistQMin = (v) => { qualityMin = parseInt(v); render(); };
+      window._schHistQMax = (v) => { qualityMax = parseInt(v); render(); };
+      render();
+    } catch (e) {
+      list.innerHTML = `<p class="text-center text-red-500 py-4">Failed to load history</p>`;
     }
   }
 
