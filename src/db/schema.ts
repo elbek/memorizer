@@ -39,7 +39,7 @@ export interface ScheduleItem {
   surah_number: number;
   start_page: number;
   end_page: number;
-  status: "pending" | "partial" | "done";
+  status: "pending" | "partial" | "done" | "missed";
   completed_at: string | null;
   quality: number | null;
 }

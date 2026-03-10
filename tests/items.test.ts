@@ -70,7 +70,7 @@ beforeAll(async () => {
       surah_number INTEGER NOT NULL,
       start_page REAL NOT NULL,
       end_page REAL NOT NULL,
-      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'partial', 'done')),
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'partial', 'done', 'missed')),
       completed_at TEXT,
       quality INTEGER CHECK(quality IS NULL OR (quality >= 1 AND quality <= 20)),
       FOREIGN KEY (schedule_id) REFERENCES schedules(id)
@@ -133,14 +133,16 @@ beforeAll(async () => {
   const sabak = listBody.pools.find((p) => p.name === "Sabak")!;
   poolId = sabak.id;
 
-  // Add surah 13 (Ar-Ra'd, 6 pages) to Sabak pool
-  await SELF.fetch(`http://localhost/api/pools/${poolId}/surahs`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Cookie: cookie },
-    body: JSON.stringify({ surah_number: 13 }),
-  });
+  // Add surahs 78, 79, 80 (An-Naba 1.5pg, An-Nazi'at 1.5pg, Abasa 1pg) to Sabak pool
+  for (const surahNum of [78, 79, 80]) {
+    await SELF.fetch(`http://localhost/api/pools/${poolId}/surahs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify({ surah_number: surahNum }),
+    });
+  }
 
-  // Activate a schedule: 6 pages over 3 days = 2 pages/day
+  // Activate a schedule: 3 surahs over 3 days = 1 surah/day
   const activateRes = await SELF.fetch(
     "http://localhost/api/schedule/activate",
     {

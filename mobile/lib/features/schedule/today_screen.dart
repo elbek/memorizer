@@ -24,9 +24,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
+    final hasExpired = state.expired.isNotEmpty;
     final body = state.loading
           ? const Center(child: CircularProgressIndicator())
-          : state.pools.isEmpty
+          : state.pools.isEmpty && !hasExpired
               ? Center(
                   child: Padding(
                     padding: const EdgeInsets.all(32),
@@ -56,10 +57,16 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               : RefreshIndicator(
                   onRefresh: () =>
                       ref.read(scheduleProvider.notifier).loadToday(),
-                  child: ListView.builder(
+                  child: ListView(
                     padding: const EdgeInsets.only(top: 8, bottom: 24),
-                    itemCount: state.pools.length,
-                    itemBuilder: (_, i) => _PoolSection(pool: state.pools[i]),
+                    children: [
+                      // Expired schedule banners
+                      for (final exp in state.expired)
+                        _ExpiredBanner(expired: exp),
+                      // Today's pools
+                      for (final pool in state.pools)
+                        _PoolSection(pool: pool),
+                    ],
                   ),
                 );
 
@@ -352,6 +359,59 @@ class _ScheduleItemCard extends ConsumerWidget {
                 Navigator.pop(context);
               },
               child: const Text('Complete'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExpiredBanner extends StatelessWidget {
+  const _ExpiredBanner({required this.expired});
+  final ExpiredPool expired;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      color: Colors.orange.withValues(alpha: 0.08),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.event_busy_rounded, size: 20, color: Colors.orange),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${expired.poolName} schedule ended',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Ended ${expired.endDate}. Create a new schedule to continue.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

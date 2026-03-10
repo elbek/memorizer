@@ -46,13 +46,27 @@ class TodayPool {
   );
 }
 
+class ExpiredPool {
+  ExpiredPool({required this.poolId, required this.poolName, required this.endDate});
+  final int poolId;
+  final String poolName;
+  final String endDate;
+
+  factory ExpiredPool.fromJson(Map<String, dynamic> json) => ExpiredPool(
+    poolId: json['pool_id'] as int,
+    poolName: json['pool_name'] as String,
+    endDate: json['end_date'] as String,
+  );
+}
+
 class TodayState {
-  const TodayState({this.pools = const [], this.loading = false, this.error});
+  const TodayState({this.pools = const [], this.expired = const [], this.loading = false, this.error});
   final List<TodayPool> pools;
+  final List<ExpiredPool> expired;
   final bool loading;
   final String? error;
-  TodayState copyWith({List<TodayPool>? pools, bool? loading, String? error}) =>
-      TodayState(pools: pools ?? this.pools, loading: loading ?? this.loading, error: error);
+  TodayState copyWith({List<TodayPool>? pools, List<ExpiredPool>? expired, bool? loading, String? error}) =>
+      TodayState(pools: pools ?? this.pools, expired: expired ?? this.expired, loading: loading ?? this.loading, error: error);
 }
 
 class ScheduleNotifier extends Notifier<TodayState> {
@@ -71,7 +85,8 @@ class ScheduleNotifier extends Notifier<TodayState> {
       final res = await _api.dio.get('/api/today', queryParameters: params);
       final data = res.data as Map<String, dynamic>;
       final pools = (data['pools'] as List).map((e) => TodayPool.fromJson(e as Map<String, dynamic>)).toList();
-      state = state.copyWith(pools: pools, loading: false);
+      final expired = (data['expired'] as List?)?.map((e) => ExpiredPool.fromJson(e as Map<String, dynamic>)).toList() ?? [];
+      state = state.copyWith(pools: pools, expired: expired, loading: false);
     } on DioException catch (e) {
       state = state.copyWith(error: e.message ?? 'Failed to load today', loading: false);
     }

@@ -20,8 +20,9 @@ class ScheduleSummary {
     required this.itemsDone,
     required this.itemsPending,
     required this.itemsPartial,
+    required this.itemsMissed,
   });
-  final int id, poolId, totalDays, itemsTotal, itemsDone, itemsPending, itemsPartial;
+  final int id, poolId, totalDays, itemsTotal, itemsDone, itemsPending, itemsPartial, itemsMissed;
   final int? cycleDays;
   final String poolName, status, startDate, endDate, createdAt;
 
@@ -41,6 +42,7 @@ class ScheduleSummary {
     itemsDone: j['items_done'] as int,
     itemsPending: j['items_pending'] as int,
     itemsPartial: j['items_partial'] as int,
+    itemsMissed: j['items_missed'] as int? ?? 0,
   );
 }
 
@@ -154,6 +156,25 @@ class ManageNotifier extends Notifier<ManageState> {
   Future<void> deleteSchedule(int scheduleId) async {
     await _api.dio.delete('/api/schedule/$scheduleId/delete');
     await loadSchedules();
+  }
+
+  Future<bool> endSchedule(int scheduleId) async {
+    try {
+      await _api.dio.post('/api/schedule/$scheduleId/end');
+      await loadSchedules();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> loadScheduleHistory(int scheduleId) async {
+    try {
+      final res = await _api.dio.get('/api/schedule/$scheduleId/history');
+      return res.data as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<SchedulePreview?> previewSchedule({

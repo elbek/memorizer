@@ -60,7 +60,7 @@ beforeAll(async () => {
       surah_number INTEGER NOT NULL,
       start_page REAL NOT NULL,
       end_page REAL NOT NULL,
-      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'partial', 'done')),
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'partial', 'done', 'missed')),
       completed_at TEXT,
       quality INTEGER CHECK(quality IS NULL OR (quality >= 1 AND quality <= 20)),
       FOREIGN KEY (schedule_id) REFERENCES schedules(id)
@@ -247,7 +247,7 @@ describe("Schedule API", () => {
     }
   });
 
-  it("activating new schedule cancels previous active one", async () => {
+  it("activating new schedule marks previous as completed with missed items", async () => {
     // First activation
     const res1 = await SELF.fetch("http://localhost/api/schedule/activate", {
       method: "POST",
@@ -276,13 +276,26 @@ describe("Schedule API", () => {
 
     expect(secondScheduleId).not.toBe(firstScheduleId);
 
-    // First schedule should be deleted
+    // First schedule should be completed (not deleted)
     const firstSched = await env.DB.prepare(
-      "SELECT id FROM schedules WHERE id = ?"
+      "SELECT status FROM schedules WHERE id = ?"
     )
       .bind(firstScheduleId)
-      .first<{ id: number }>();
-    expect(firstSched).toBeNull();
+      .first<{ status: string }>();
+    expect(firstSched).not.toBeNull();
+    expect(firstSched!.status).toBe("completed");
+
+    // First schedule's pending items should be marked as missed
+    const missedItems = await env.DB.prepare(
+      "SELECT COUNT(*) as count FROM schedule_items WHERE schedule_id = ? AND status = 'missed'"
+    ).bind(firstScheduleId).first<{ count: number }>();
+    expect(missedItems!.count).toBeGreaterThan(0);
+
+    // No pending items should remain
+    const pendingItems = await env.DB.prepare(
+      "SELECT COUNT(*) as count FROM schedule_items WHERE schedule_id = ? AND status = 'pending'"
+    ).bind(firstScheduleId).first<{ count: number }>();
+    expect(pendingItems!.count).toBe(0);
 
     // Second schedule should be active
     const secondSched = await env.DB.prepare(
@@ -419,6 +432,175 @@ describe("Schedule API", () => {
       expect(item.arabic).toBeTruthy();
       expect(item.status).toBe("pending");
     }
+  });
+
+  it("POST /:scheduleId/end marks schedule completed and items missed", async () => {
+    // Activate a schedule
+    const activateRes = await SELF.fetch("http://localhost/api/schedule/activate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify({
+        pool_id: poolId,
+        total_days: 5,
+        start_date: "2026-05-01",
+      }),
+    });
+    const { schedule_id: schedId } = (await activateRes.json()) as { schedule_id: number };
+
+    // End the schedule
+    const endRes = await SELF.fetch(`http://localhost/api/schedule/${schedId}/end`, {
+      method: "POST",
+      headers: { Cookie: cookie },
+    });
+    expect(endRes.status).toBe(200);
+
+    // Schedule should be completed
+    const sched = await env.DB.prepare("SELECT status FROM schedules WHERE id = ?")
+      .bind(schedId).first<{ status: string }>();
+    expect(sched!.status).toBe("completed");
+
+    // Pending items should be marked missed
+    const pending = await env.DB.prepare(
+      "SELECT COUNT(*) as c FROM schedule_items WHERE schedule_id = ? AND status = 'pending'"
+    ).bind(schedId).first<{ c: number }>();
+    expect(pending!.c).toBe(0);
+
+    const missed = await env.DB.prepare(
+      "SELECT COUNT(*) as c FROM schedule_items WHERE schedule_id = ? AND status = 'missed'"
+    ).bind(schedId).first<{ c: number }>();
+    expect(missed!.c).toBeGreaterThan(0);
+  });
+
+  it("POST /:scheduleId/end rejects non-active schedule", async () => {
+    // Create and end a schedule first
+    const activateRes = await SELF.fetch("http://localhost/api/schedule/activate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify({ pool_id: poolId, total_days: 3, start_date: "2026-06-01" }),
+    });
+    const { schedule_id: schedId } = (await activateRes.json()) as { schedule_id: number };
+    await SELF.fetch(`http://localhost/api/schedule/${schedId}/end`, {
+      method: "POST",
+      headers: { Cookie: cookie },
+    });
+
+    // Try to end again — should fail
+    const endRes = await SELF.fetch(`http://localhost/api/schedule/${schedId}/end`, {
+      method: "POST",
+      headers: { Cookie: cookie },
+    });
+    expect(endRes.status).toBe(400);
+  });
+
+  it("GET /:scheduleId/history returns items with stats", async () => {
+    // Activate a schedule
+    const activateRes = await SELF.fetch("http://localhost/api/schedule/activate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify({ pool_id: poolId, total_days: 3, start_date: "2026-07-01" }),
+    });
+    const { schedule_id: schedId } = (await activateRes.json()) as { schedule_id: number };
+
+    // Mark one item as done
+    const items = await env.DB.prepare(
+      "SELECT id FROM schedule_items WHERE schedule_id = ? LIMIT 1"
+    ).bind(schedId).first<{ id: number }>();
+
+    await SELF.fetch(`http://localhost/api/item/${items!.id}/done`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify({ quality: 15 }),
+    });
+
+    // Fetch history
+    const histRes = await SELF.fetch(`http://localhost/api/schedule/${schedId}/history`, {
+      headers: { Cookie: cookie },
+    });
+    expect(histRes.status).toBe(200);
+
+    const body = (await histRes.json()) as {
+      schedule: { id: number; pool_name: string; status: string; end_date: string };
+      items: Array<{ surah_name: string; status: string; quality: number | null; date: string }>;
+      stats: { total: number; done: number; partial: number; pending: number; missed: number; avg_quality: number };
+    };
+
+    expect(body.schedule.id).toBe(schedId);
+    expect(body.schedule.end_date).toBeTruthy();
+    expect(body.items.length).toBeGreaterThan(0);
+    expect(body.stats.done).toBe(1);
+    expect(body.stats.avg_quality).toBe(15);
+
+    // Items should have date field
+    for (const item of body.items) {
+      expect(item.date).toBeTruthy();
+      expect(item.surah_name).toBeTruthy();
+    }
+  });
+
+  it("GET /today auto-completes expired schedules and returns expired array", async () => {
+    // Insert a schedule that ended in the past directly in DB
+    const pastStart = "2025-01-01";
+    const result = await env.DB.prepare(
+      "INSERT INTO schedules (pool_id, start_date, total_days, status) VALUES (?, ?, ?, 'active')"
+    ).bind(poolId, pastStart, 3).run();
+    const expiredSchedId = result.meta.last_row_id as number;
+
+    // Insert some items
+    await env.DB.prepare(
+      "INSERT INTO schedule_items (schedule_id, day_number, surah_number, start_page, end_page) VALUES (?, 1, 112, 0, 0.5)"
+    ).bind(expiredSchedId).run();
+
+    const res = await SELF.fetch("http://localhost/api/today?date=2025-02-01", {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as {
+      pools: Array<Record<string, unknown>>;
+      expired: Array<{ pool_id: number; pool_name: string; end_date: string }>;
+    };
+
+    // Should have expired entry
+    expect(body.expired.length).toBeGreaterThanOrEqual(1);
+    const exp = body.expired.find((e) => e.pool_id === poolId);
+    expect(exp).toBeDefined();
+    expect(exp!.end_date).toBe("2025-01-03");
+
+    // Schedule should now be completed in DB
+    const sched = await env.DB.prepare("SELECT status FROM schedules WHERE id = ?")
+      .bind(expiredSchedId).first<{ status: string }>();
+    expect(sched!.status).toBe("completed");
+
+    // Pending items should be marked missed
+    const pending = await env.DB.prepare(
+      "SELECT COUNT(*) as c FROM schedule_items WHERE schedule_id = ? AND status = 'pending'"
+    ).bind(expiredSchedId).first<{ c: number }>();
+    expect(pending!.c).toBe(0);
+  });
+
+  it("GET /schedule/list auto-completes expired schedules", async () => {
+    // Insert an expired active schedule directly
+    const result = await env.DB.prepare(
+      "INSERT INTO schedules (pool_id, start_date, total_days, status) VALUES (?, '2024-01-01', 2, 'active')"
+    ).bind(poolId).run();
+    const schedId = result.meta.last_row_id as number;
+    await env.DB.prepare(
+      "INSERT INTO schedule_items (schedule_id, day_number, surah_number, start_page, end_page) VALUES (?, 1, 113, 0, 0.5)"
+    ).bind(schedId).run();
+
+    const res = await SELF.fetch("http://localhost/api/schedule/list", {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as {
+      schedules: Array<{ id: number; status: string; items_missed: number }>;
+    };
+
+    const found = body.schedules.find((s) => s.id === schedId);
+    expect(found).toBeDefined();
+    expect(found!.status).toBe("completed");
+    expect(found!.items_missed).toBeGreaterThanOrEqual(1);
   });
 
   it("GET /today returns empty when no active schedules", async () => {

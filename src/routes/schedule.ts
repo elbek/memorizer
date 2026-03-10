@@ -148,7 +148,7 @@ schedule.post("/generate", async (c) => {
 
 /**
  * POST /activate — Save schedule to DB
- * Cancels old schedule and DELETES its pending items (replace, not append).
+ * Marks old schedule as completed and deletes only its pending items (preserves history).
  */
 schedule.post("/activate", async (c) => {
   const userId = c.get("userId");
@@ -176,7 +176,7 @@ schedule.post("/activate", async (c) => {
     return c.json({ error: "Pool has no surahs" }, 400);
   }
 
-  // Cancel old active schedule and delete its pending items (clean replace)
+  // Mark old active schedule as completed, mark its pending items as missed (preserve history)
   const oldSchedule = await c.env.DB.prepare(
     "SELECT id FROM schedules WHERE pool_id = ? AND status = 'active'"
   ).bind(pool_id).first<{ id: number }>();
@@ -184,10 +184,10 @@ schedule.post("/activate", async (c) => {
   if (oldSchedule) {
     await c.env.DB.batch([
       c.env.DB.prepare(
-        "DELETE FROM schedule_items WHERE schedule_id = ?"
+        "UPDATE schedule_items SET status = 'missed' WHERE schedule_id = ? AND status = 'pending'"
       ).bind(oldSchedule.id),
       c.env.DB.prepare(
-        "DELETE FROM schedules WHERE id = ?"
+        "UPDATE schedules SET status = 'completed' WHERE id = ?"
       ).bind(oldSchedule.id),
     ]);
   }
@@ -248,19 +248,29 @@ schedule.get("/list", async (c) => {
       pool_name: string;
     }>();
 
-  // For each schedule, get completion stats
+  // Auto-complete expired schedules, then get completion stats
+  const todayStr = new Date().toISOString().split("T")[0];
   const schedules = [];
   for (const sched of result.results) {
+    // Lazily mark expired active schedules as completed
+    if (sched.status === "active") {
+      const wasExpired = await autoCompleteIfExpired(
+        c.env.DB, sched.id, sched.start_date, sched.total_days, todayStr
+      );
+      if (wasExpired) sched.status = "completed";
+    }
+
     const stats = await c.env.DB.prepare(
       `SELECT
          COUNT(*) as total,
          SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done,
          SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-         SUM(CASE WHEN status = 'partial' THEN 1 ELSE 0 END) as partial
+         SUM(CASE WHEN status = 'partial' THEN 1 ELSE 0 END) as partial,
+         SUM(CASE WHEN status = 'missed' THEN 1 ELSE 0 END) as missed
        FROM schedule_items WHERE schedule_id = ?`
     )
       .bind(sched.id)
-      .first<{ total: number; done: number; pending: number; partial: number }>();
+      .first<{ total: number; done: number; pending: number; partial: number; missed: number }>();
 
     const endDate = addDays(sched.start_date, sched.total_days - 1);
 
@@ -271,6 +281,7 @@ schedule.get("/list", async (c) => {
       items_done: stats?.done ?? 0,
       items_pending: stats?.pending ?? 0,
       items_partial: stats?.partial ?? 0,
+      items_missed: stats?.missed ?? 0,
     });
   }
 
@@ -335,7 +346,109 @@ schedule.get("/:poolId", async (c) => {
 });
 
 /**
- * DELETE /:scheduleId/delete — Delete a schedule (only if not completed)
+ * GET /:scheduleId/history — Get recitation history for a completed/active schedule
+ */
+schedule.get("/:scheduleId/history", async (c) => {
+  const userId = c.get("userId");
+  const scheduleId = Number(c.req.param("scheduleId"));
+
+  // Verify schedule belongs to user
+  const sched = await c.env.DB.prepare(
+    `SELECT s.id, s.pool_id, s.start_date, s.total_days, s.cycle_days, s.status, s.created_at, p.name as pool_name
+     FROM schedules s
+     JOIN pools p ON p.id = s.pool_id
+     WHERE s.id = ? AND p.user_id = ?`
+  )
+    .bind(scheduleId, userId)
+    .first<{
+      id: number; pool_id: number; start_date: string; total_days: number;
+      cycle_days: number | null; status: string; created_at: string; pool_name: string;
+    }>();
+
+  if (!sched) {
+    return c.json({ error: "Schedule not found" }, 404);
+  }
+
+  // Get all items (done + partial) with surah info
+  const itemsResult = await c.env.DB.prepare(
+    `SELECT * FROM schedule_items WHERE schedule_id = ? ORDER BY day_number, id`
+  )
+    .bind(scheduleId)
+    .all<{
+      id: number; day_number: number; surah_number: number;
+      start_page: number; end_page: number; status: string;
+      completed_at: string | null; quality: number | null;
+    }>();
+
+  const items = itemsResult.results.map((item) => {
+    const surah = SURAHS.find((s) => s.number === item.surah_number);
+    return {
+      ...item,
+      surah_name: surah?.name ?? "",
+      arabic: surah?.arabic ?? "",
+      pages: item.end_page - item.start_page,
+      date: addDays(sched.start_date, item.day_number - 1),
+    };
+  });
+
+  const endDate = addDays(sched.start_date, sched.total_days - 1);
+  const doneCount = items.filter((i) => i.status === "done").length;
+  const avgQuality = doneCount > 0
+    ? items.filter((i) => i.status === "done" && i.quality != null)
+        .reduce((sum, i) => sum + (i.quality ?? 0), 0) / doneCount
+    : 0;
+
+  return c.json({
+    schedule: { ...sched, end_date: endDate },
+    items,
+    stats: {
+      total: items.length,
+      done: doneCount,
+      partial: items.filter((i) => i.status === "partial").length,
+      pending: items.filter((i) => i.status === "pending").length,
+      missed: items.filter((i) => i.status === "missed").length,
+      avg_quality: Math.round(avgQuality * 10) / 10,
+    },
+  });
+});
+
+/**
+ * POST /:scheduleId/end — End an active schedule early (mark completed, remove pending items)
+ */
+schedule.post("/:scheduleId/end", async (c) => {
+  const userId = c.get("userId");
+  const scheduleId = Number(c.req.param("scheduleId"));
+
+  const sched = await c.env.DB.prepare(
+    `SELECT s.id, s.status FROM schedules s
+     JOIN pools p ON p.id = s.pool_id
+     WHERE s.id = ? AND p.user_id = ?`
+  )
+    .bind(scheduleId, userId)
+    .first<{ id: number; status: string }>();
+
+  if (!sched) {
+    return c.json({ error: "Schedule not found" }, 404);
+  }
+
+  if (sched.status !== "active") {
+    return c.json({ error: "Schedule is not active" }, 400);
+  }
+
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      "UPDATE schedule_items SET status = 'missed' WHERE schedule_id = ? AND status = 'pending'"
+    ).bind(scheduleId),
+    c.env.DB.prepare(
+      "UPDATE schedules SET status = 'completed' WHERE id = ?"
+    ).bind(scheduleId),
+  ]);
+
+  return c.json({ ok: true });
+});
+
+/**
+ * DELETE /:scheduleId/delete — Delete a schedule and its items
  */
 schedule.delete("/:scheduleId/delete", async (c) => {
   const userId = c.get("userId");
@@ -354,10 +467,6 @@ schedule.delete("/:scheduleId/delete", async (c) => {
     return c.json({ error: "Schedule not found" }, 404);
   }
 
-  if (sched.status === "completed") {
-    return c.json({ error: "Cannot delete a completed schedule" }, 400);
-  }
-
   await c.env.DB.batch([
     c.env.DB.prepare("DELETE FROM schedule_items WHERE schedule_id = ?").bind(scheduleId),
     c.env.DB.prepare("DELETE FROM schedules WHERE id = ?").bind(scheduleId),
@@ -365,6 +474,33 @@ schedule.delete("/:scheduleId/delete", async (c) => {
 
   return c.json({ ok: true });
 });
+
+/**
+ * Helper: auto-complete a schedule if its date range has passed.
+ * Deletes remaining pending items and marks the schedule as completed.
+ */
+async function autoCompleteIfExpired(
+  db: D1Database,
+  schedId: number,
+  startDate: string,
+  totalDays: number,
+  todayStr: string
+): Promise<boolean> {
+  const start = new Date(startDate + "T00:00:00Z");
+  const today = new Date(todayStr + "T00:00:00Z");
+  const dayNumber = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  if (dayNumber <= totalDays) return false;
+
+  await db.batch([
+    db.prepare(
+      "UPDATE schedule_items SET status = 'missed' WHERE schedule_id = ? AND status = 'pending'"
+    ).bind(schedId),
+    db.prepare(
+      "UPDATE schedules SET status = 'completed' WHERE id = ?"
+    ).bind(schedId),
+  ]);
+  return true;
+}
 
 /**
  * Today handler — Get today's assignments across ALL pools.
@@ -417,6 +553,12 @@ export async function todayHandler(c: Context<Env>) {
     }>;
   }> = [];
 
+  const expired: Array<{
+    pool_id: number;
+    pool_name: string;
+    end_date: string;
+  }> = [];
+
   for (const pool of poolsResult.results) {
     // Find active schedule for this pool
     const sched = await c.env.DB.prepare(
@@ -464,8 +606,23 @@ export async function todayHandler(c: Context<Env>) {
             };
           }),
         });
+      } else {
+        // Schedule has expired — auto-complete it and track for the response
+        await autoCompleteIfExpired(c.env.DB, sched.id, sched.start_date, sched.total_days, todayStr);
+        expired.push({
+          pool_id: pool.id,
+          pool_name: pool.name,
+          end_date: addDays(sched.start_date, sched.total_days - 1),
+        });
       }
       continue;
+    }
+
+    // Mark past days' pending items as missed (lazy cleanup)
+    if (dayNumber > 1) {
+      await c.env.DB.prepare(
+        "UPDATE schedule_items SET status = 'missed' WHERE schedule_id = ? AND day_number < ? AND status = 'pending'"
+      ).bind(sched.id, dayNumber).run();
     }
 
     // Fetch schedule items for this day
@@ -512,5 +669,5 @@ export async function todayHandler(c: Context<Env>) {
   // Sort upcoming by start date (earliest first)
   upcoming.sort((a, b) => a.start_date.localeCompare(b.start_date));
 
-  return c.json({ pools, upcoming });
+  return c.json({ pools, upcoming, expired });
 }

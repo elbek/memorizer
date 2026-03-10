@@ -70,7 +70,7 @@ beforeAll(async () => {
       surah_number INTEGER NOT NULL,
       start_page REAL NOT NULL,
       end_page REAL NOT NULL,
-      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'partial', 'done')),
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'partial', 'done', 'missed')),
       completed_at TEXT,
       quality INTEGER CHECK(quality IS NULL OR (quality >= 1 AND quality <= 20)),
       FOREIGN KEY (schedule_id) REFERENCES schedules(id)
