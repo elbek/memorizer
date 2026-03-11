@@ -1,10 +1,40 @@
 import { Hono } from "hono";
+import { SURAHS } from "../data/surahs";
 
 type Bindings = { DB: D1Database; JWT_SECRET: string };
 type Variables = { userId: number };
 type Env = { Bindings: Bindings; Variables: Variables };
 
 export const items = new Hono<Env>();
+
+/**
+ * POST /recite — Record an ad-hoc recitation (not tied to a schedule item).
+ * Body: { surah_number, quality }
+ */
+items.post("/recite", async (c) => {
+  const userId = c.get("userId");
+  const body = await c.req.json<{ surah_number?: number; quality?: number }>();
+  const { surah_number, quality } = body;
+
+  if (!surah_number || surah_number < 1 || surah_number > 114) {
+    return c.json({ error: "surah_number must be 1-114" }, 400);
+  }
+  if (!quality || !Number.isInteger(quality) || quality < 1 || quality > 20) {
+    return c.json({ error: "quality must be an integer 1-20" }, 400);
+  }
+
+  const surah = SURAHS.find((s) => s.number === surah_number);
+  if (!surah) return c.json({ error: "Surah not found" }, 404);
+
+  await c.env.DB.prepare(
+    `INSERT INTO recitation_log (user_id, surah_number, start_page, end_page, quality)
+     VALUES (?, ?, 0, ?, ?)`
+  )
+    .bind(userId, surah_number, surah.pages, quality)
+    .run();
+
+  return c.json({ ok: true });
+});
 
 /**
  * Helper: verify a schedule item belongs to the authenticated user

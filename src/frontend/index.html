@@ -553,11 +553,9 @@
               <input type="number" id="quran-page-input" min="1" max="604" value="1"
                 onchange="goToQuranPage(this.value)"
                 class="w-14 text-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-1 py-1 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500">
-              <span class="text-gray-400">/ 604</span>
             </div>
             <select id="quran-surah-select" onchange="goToSurahDirect(this.value)"
               class="px-2 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 max-w-[100px]">
-              <option value="">Surah</option>
             </select>
             <button onclick="toggleTajweed()" id="quran-tajweed-btn"
               class="px-2 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition active:scale-95"
@@ -2357,7 +2355,45 @@
           `;
         }).join('')}
       </div>
+      <button onclick="openAdHocRecite()" class="mt-3 w-full py-2 text-xs font-medium text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 rounded-lg hover:bg-primary-100 dark:hover:bg-primary-900/30 transition">
+        + Record Recitation
+      </button>
+      <div id="adhoc-recite-form" class="hidden mt-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 space-y-3">
+        <select id="adhoc-surah" class="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+          ${Array.from({length: 114}, (_, i) => {
+            const s = getSurah(i + 1);
+            return '<option value="' + (i+1) + '">' + (i+1) + '. ' + escHtml(s ? s.name : '') + '</option>';
+          }).join('')}
+        </select>
+        <div>
+          <label class="text-xs text-gray-500 mb-1 block">Quality: <span id="adhoc-quality-val" class="font-bold">10</span>/20</label>
+          <input type="range" id="adhoc-quality" min="1" max="20" value="10" class="w-full" oninput="document.getElementById('adhoc-quality-val').textContent = this.value">
+        </div>
+        <div class="flex gap-2">
+          <button onclick="confirmAdHocRecite()" class="flex-1 py-2 text-xs font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition">Save</button>
+          <button onclick="document.getElementById('adhoc-recite-form').classList.add('hidden')" class="flex-1 py-2 text-xs font-medium text-gray-500 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition">Cancel</button>
+        </div>
+      </div>
     `;
+  }
+
+  function openAdHocRecite() {
+    const form = document.getElementById('adhoc-recite-form');
+    form.classList.toggle('hidden');
+  }
+
+  async function confirmAdHocRecite() {
+    const surahNum = parseInt(document.getElementById('adhoc-surah').value);
+    const quality = parseInt(document.getElementById('adhoc-quality').value);
+    try {
+      await api('POST', '/api/item/recite', { surah_number: surahNum, quality });
+      document.getElementById('adhoc-recite-form').classList.add('hidden');
+      // Refresh calendar to show updated data
+      await loadCalendarMonth();
+      renderCalendar();
+    } catch (e) {
+      alert(e.message || 'Failed to record recitation');
+    }
   }
 
   // ============================================================
@@ -2590,10 +2626,10 @@
   const NO_BISMILLAH = new Set([1, 9]);
 
   async function loadQuranFont(pageNumber) {
-    // When tajweed is enabled on V2, use the V4 color font (same glyph codes)
+    // When tajweed is enabled on V2, use V4 color font (same glyph codes)
     const useTajweedFont = tajweedEnabled && currentMushaf === 'v2';
     const fontPath = useTajweedFont ? MUSHAF_CONFIG.v4.fontPath : MUSHAF_CONFIG[currentMushaf].fontPath;
-    const fontKey = useTajweedFont ? 'v2-tj' : currentMushaf;
+    const fontKey = useTajweedFont ? 'tj' : currentMushaf;
     const fontName = `p${pageNumber}-${fontKey}`;
     if (loadedFonts.has(fontName)) return fontName;
     const fontFace = new FontFace(fontName,
@@ -2768,6 +2804,12 @@
       const juzText = juzNumber ? `Juz ${juzNumber}` : '';
       infoBar.innerHTML = `<span class="font-semibold">${parts.join(' · ')}</span>${juzText ? `<span class="mx-2 text-gray-300 dark:text-gray-600">|</span><span>${juzText}</span>` : ''}`;
 
+      // Update surah dropdown to reflect current page's first surah
+      const surahSel = document.getElementById('quran-surah-select');
+      if (surahSel && surahAyahs.size > 0) {
+        surahSel.value = [...surahAyahs.keys()][0];
+      }
+
       // Preload adjacent page fonts in background
       if (pageNumber < 604) loadQuranFont(pageNumber + 1).catch(() => {});
       if (pageNumber > 1) loadQuranFont(pageNumber - 1).catch(() => {});
@@ -2787,8 +2829,8 @@
   function updateTajweedBtn() {
     const btn = document.getElementById('quran-tajweed-btn');
     if (!btn) return;
-    // Tajweed toggle only works for V2 (swaps to V4 color font). V4 already has it. V1 not supported.
-    btn.style.display = currentMushaf === 'v1' || currentMushaf === 'v4' ? 'none' : '';
+    // Tajweed toggle only for V2 (swaps to V4 color font). V4 already has it. V1 has no tajweed font.
+    btn.style.display = currentMushaf === 'v2' ? '' : 'none';
     if (tajweedEnabled) {
       btn.classList.add('bg-primary-100', 'dark:bg-primary-900/30', 'border-primary-400', 'text-primary-700');
       btn.classList.remove('bg-white', 'dark:bg-gray-800', 'border-gray-200', 'dark:border-gray-700', 'text-gray-600', 'dark:text-gray-300');
@@ -2905,8 +2947,6 @@
     if (idx[surahNum]) {
       goToQuranPage(idx[surahNum]);
     }
-    // Reset select to show "Surah" placeholder
-    document.getElementById('quran-surah-select').value = '';
   }
 
   // Touch swipe support for Quran reader
